@@ -1,0 +1,35 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32",
+            "includePath": [
+                "/usr/local/include",
+                "${workspaceFolder}/build/_deps/googletest-src/googletest/include/",
+                "${workspaceFolder}/../common/src",
+                "${workspaceFolder}/../broker/src",
+                "${workspaceFolder}/../linux/src",
+                "${workspaceFolder}/../../limero/inc/",
+                "${workspaceFolder}/../../zenoh-c/include/",
+                "${workspaceFolder}/../../tinycbor/src",
+                "${workspaceFolder}/../hiredis",
+                "${workspaceFolder}/../etl/include",
+                "${workspaceFolder}/src/",
+                "${workspaceFolder}/../../ArduinoJson/src"
+            ],
+            "defines": [
+                "NOTHING",
+                "__linux__",
+                "ZMQ_BUILD_DRAFT_API",
+                "ZENOH_LINUX",
+                "BROKER_REDIS"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "c++14",
+            //            "intelliSenseMode": "linux-gcc-x64",
+            "forcedInclude": [],
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}
