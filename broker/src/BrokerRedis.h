@@ -1,6 +1,6 @@
 #ifndef _BROKER_REDIS_H_
 #define _BROKER_DREDIS_H_
-#include <async.h>
+//#include <async.h>
 #include <hiredis.h>
 #include <log.h>
 

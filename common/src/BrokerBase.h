@@ -4,6 +4,7 @@
 #include <CborDeserializer.h>
 #include <CborSerializer.h>
 #include <limero.h>
+#include <CborDump.h>
 typedef int (*SubscribeCallback)(int, Bytes);
 
 struct PubMsg
@@ -58,6 +59,7 @@ public:
     SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t)
                                               {
                                                 Bytes bs = _toCbor.begin().add(t).end().toBytes();
+                                                INFO(" %s %s ", absTopic.c_str(), cborDump(bs).c_str());
                                                 _outgoing.on({absTopic, bs});
                                               });
     return *sf;

@@ -1,0 +1,9 @@
+[submodule "etl"]
+	path = etl
+	url = https://github.com/ETLCPP/etl.git
+[submodule "tinycbor"]
+	path = tinycbor
+	url = https://github.com/intel/tinycbor.git
+[submodule "hiredis"]
+	path = hiredis
+	url = https://github.com/redis/hiredis.git

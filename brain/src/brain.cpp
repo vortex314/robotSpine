@@ -93,8 +93,8 @@ int main(int argc, char **argv) {
   auto &pub = broker.publisher<uint64_t>("src/brain/system/uptime");
 
   ticker >> [&](const TimerMsg &) {
-    INFO("ticker");
-    pub.on(Sys::millis());
+    INFO("ticker %lu ", Sys::micros());
+    pub.on(Sys::micros());
     broker.request("keys *", [&](redisReply *reply) {
       for (int i = 0; i < reply->elements; i++) {
         string key = reply->element[i]->str;
@@ -111,24 +111,14 @@ int main(int argc, char **argv) {
     });
   };
 
-  broker.subscriber<int>("") >>
-      *new LambdaFlow<int, uint64_t>([&](uint64_t &out, const int &) {
-        out = Sys::micros();
-        return true;
-      }) >>
-      broker.publisher<uint64_t>("src/brain/system/uptime");
-
   broker.subscriber<uint64_t>("src/brain/system/uptime") >>
-      *new LambdaFlow<uint64_t, uint64_t>([&](uint64_t &out,
-                                              const uint64_t &in) {
-        out = Sys::micros() - in;
-        LOGI << " recv ts " << in << " latency : " << out << " usec " << LEND;
-        return true;
-      }) >>
+      *new LambdaFlow<uint64_t, uint64_t>(
+          [&](uint64_t &out, const uint64_t &in) {
+            out = Sys::micros() - in;
+            INFO(" src/brain/system/uptime : %lu", in);
+            return true;
+          }) >>
       broker.publisher<uint64_t>("src/brain/system/latency");
-
-  broker.subscriber<bool>("src/stellaris/system/alive") >>
-      [&](const bool &b) { INFO("alive."); };
 
   broker.subscribe("src/*");
   broker.incoming() >> [&](const PubMsg &msg) {
@@ -155,7 +145,6 @@ int main(int argc, char **argv) {
       broker.command(
           stringFormat("SET  %s \"%s\" ", key.c_str(), s.c_str()).c_str());
   };
-
 
   workerThread.run();
   broker.disconnect();
