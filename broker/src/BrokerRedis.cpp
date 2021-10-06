@@ -28,6 +28,11 @@ void BrokerRedis::onMessage(redisContext *c, void *reply, void *me)
   }
 }
 
+bool isFailedReply(redisReply *reply)
+{
+  return reply == 0 || reply->type == REDIS_REPLY_ERROR;
+}
+
 string BrokerRedis::replyToString(void *r)
 {
   if (r == 0)
@@ -88,14 +93,15 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   };
   _incoming >> [&](const PubMsg &msg)
   {
-    INFO("Redis RXD %s %s ", msg.topic.c_str(),
+    DEBUG("Redis RXD %s %s ", msg.topic.c_str(),
          msg.payload.size() < 100
              ? cborDump(msg.payload).c_str()
              : stringFormat("size : [%d]", msg.payload.size()).c_str());
   };
-  _outgoing >> [&](const PubMsg &msg)
+  _outgoing >>
+      [&](const PubMsg &msg)
   {
-   INFO("publish %s %s ", msg.topic.c_str(), cborDump(msg.payload).c_str());
+    DEBUG("publish %s %s ", msg.topic.c_str(), cborDump(msg.payload).c_str());
     publish(msg.topic, msg.payload);
   };
 }
@@ -231,9 +237,9 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
     return ENOTCONN;
   redisReply *r = (redisReply *)redisCommand(
       _publishContext, "PUBLISH %s %b", topic.c_str(), bs.data(), bs.size());
-  if (r == 0)
+  if (isFailedReply(r))
   {
-    LOGW << "Redis PUBLISH failed " << topic << LEND;
+    WARN("Redis PUBLISH '%s' failed  : %s ", topic.c_str(), replyToString(r).c_str());
     disconnect();
     connect(_node);
   }
@@ -241,7 +247,7 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
   {
     // showReply(r);
     freeReplyObject(r);
-    LOGI << "Redis PUBLISH " << topic << ": [" << bs.size() << "]" << LEND;
+    DEBUG("Redis PUBLISH %s : [%d] ", topic.c_str(), bs.size());
   }
   return 0;
 }
@@ -262,18 +268,24 @@ int BrokerRedis::command(const char *format, ...)
     return ENOTCONN;
   va_list ap;
   va_start(ap, format);
-  void *reply = redisvCommand(_publishContext, format, ap);
+  redisReply *reply = (redisReply *)redisvCommand(_publishContext, format, ap);
   va_end(ap);
-  if (reply)
+  if (isFailedReply(reply))
   {
-    LOGI << " command : " << format << LEND;
-    freeReplyObject(reply);
+    INFO(" command failed : %s : %s ", format, replyToString(reply).c_str());
+    if (reply)
+      freeReplyObject(reply);
+    disconnect();
+    connect(_node);
+    return EINVAL;
+  }
+  else
+  {
+    DEBUG(" command success : %s : %s ", format, replyToString(reply).c_str());
+    if (reply)
+      freeReplyObject(reply);
     return 0;
   }
-  LOGW << "command : " << format << " failed " << LEND;
-  disconnect();
-  connect(_node);
-  return EINVAL;
 }
 
 int BrokerRedis::request(string cmd, std::function<void(redisReply *)> func)

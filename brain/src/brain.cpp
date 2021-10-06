@@ -83,7 +83,8 @@ int main(int argc, char **argv) {
   TimerSource pubTimer(workerThread, 2000, true, "pubTimer");
   CborSerializer cborSerializer(1024);
   CborDeserializer cborDeserializer(1024);
-  TimerSource ticker(workerThread, 3000, true, "ticker");
+  TimerSource timerLatency(workerThread, 1000, true, "ticker");
+  TimerSource timerMeta(workerThread, 10000, true, "ticker");
 
   BrokerRedis broker(workerThread, brokerConfig);
   broker.init();
@@ -92,9 +93,8 @@ int main(int argc, char **argv) {
 
   auto &pub = broker.publisher<uint64_t>("src/brain/system/uptime");
 
-  ticker >> [&](const TimerMsg &) {
-    INFO("ticker %lu ", Sys::micros());
-    pub.on(Sys::micros());
+  timerLatency >> [&](const TimerMsg &) { pub.on(Sys::micros()); };
+  timerMeta >> [&](const TimerMsg &) {
     broker.request("keys *", [&](redisReply *reply) {
       for (int i = 0; i < reply->elements; i++) {
         string key = reply->element[i]->str;
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
           INFO(" key[%d] :  %s ", i, key.c_str());
           vector<string> parts = split(key, '/');
           broker.command(
-              stringFormat("ts.alter %s labels node %s object %s property %s",
+              stringFormat("TS.ALTER %s LABELS node %s object %s property %s",
                            key.c_str(), parts[1].c_str(), parts[2].c_str(),
                            parts[3].c_str())
                   .c_str());

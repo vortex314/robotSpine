@@ -59,7 +59,6 @@ public:
     SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t)
                                               {
                                                 Bytes bs = _toCbor.begin().add(t).end().toBytes();
-                                                INFO(" %s %s ", absTopic.c_str(), cborDump(bs).c_str());
                                                 _outgoing.on({absTopic, bs});
                                               });
     return *sf;

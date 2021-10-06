@@ -36,14 +36,18 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
                             int nestingLevel)
 {
   CborError ret = CborNoError;
-  bool first=true;
+  bool first = true;
   while (!cbor_value_at_end(it))
   {
     CborType type = cbor_value_get_type(it);
 
     indent(ss, nestingLevel);
-    if ( first ) { first =false; }
-    else ss << ",";
+    if (first)
+    {
+      first = false;
+    }
+    else
+      ss << ",";
     switch (type)
     {
     case CborArrayType:
@@ -78,13 +82,12 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
     }
     case CborIntegerType:
     {
-      uint64_t val;
-      ret = cbor_value_get_raw_integer(it, &val); /* can't fail */
-      CBOR_CHECK(ret, "parse int64 failed", err, ret);
-      bool isUnsignedInteger = cbor_value_is_unsigned_integer(it);
-      if (isUnsignedInteger)
+      int64_t val;
+      if (cbor_value_is_unsigned_integer(it))
       {
-        ss << (uint64_t)val ;
+        ret = cbor_value_get_int64_checked(it, &val); /* can't fail */
+        CBOR_CHECK(ret, "parse int64 failed", err, ret);
+        ss << (uint64_t)val;
       }
       else
       {
@@ -92,11 +95,11 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
          * (that is, -1 is stored as 0, -2 as 1 and so forth) */
         if (++val)
         { /* unsigned overflow may happen */
-          ss << (int64_t)val ;
+          ss << (int64_t)val;
         }
         else
         {
-          ss << -1234567890123456LL ;
+          ss << -1234567890123456LL;
         }
       }
       break;
