@@ -6,6 +6,7 @@
 
 #include "BrokerBase.h"
 #include "limero.h"
+#include <set>
 
 using namespace std;
 
@@ -15,7 +16,7 @@ struct SubscriberStruct {
 
 class BrokerRedis : public BrokerBase {
   Thread &_thread;
-  unordered_map<string, SubscriberStruct *> _subscribers;
+  set<string> _subscribers;
   int scout();
   string _hostname;
   uint16_t _port;
@@ -26,7 +27,6 @@ class BrokerRedis : public BrokerBase {
   Thread *_subscribeEventThread;
   struct event_base *_publishEventBase;
   struct event_base *_subscribeEventBase;
-  SubscriberStruct *findSub(string pattern);
   TimerSource _reconnectTimer;
   static void onMessage(redisContext *c, void *reply, void *me);
 
@@ -42,6 +42,7 @@ class BrokerRedis : public BrokerBase {
   int onSubscribe(SubscribeCallback);
   int unSubscribe(string);
   int subscribe(string);
+  int subscribeAll();
   bool match(string pattern, string source);
   redisReply* xread(string key);
   int command(const char *format, ...);

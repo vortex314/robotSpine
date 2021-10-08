@@ -93,7 +93,10 @@ int main(int argc, char **argv) {
 
   auto &pub = broker.publisher<uint64_t>("src/brain/system/uptime");
 
-  timerLatency >> [&](const TimerMsg &) { pub.on(Sys::micros()); };
+  timerLatency >> [&](const TimerMsg &) {
+    INFO("pub");
+    pub.on(Sys::micros());
+  };
   timerMeta >> [&](const TimerMsg &) {
     broker.request("keys *", [&](redisReply *reply) {
       for (int i = 0; i < reply->elements; i++) {

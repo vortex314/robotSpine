@@ -94,9 +94,9 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   _incoming >> [&](const PubMsg &msg)
   {
     DEBUG("Redis RXD %s %s ", msg.topic.c_str(),
-         msg.payload.size() < 100
-             ? cborDump(msg.payload).c_str()
-             : stringFormat("size : [%d]", msg.payload.size()).c_str());
+          msg.payload.size() < 100
+              ? cborDump(msg.payload).c_str()
+              : stringFormat("size : [%d]", msg.payload.size()).c_str());
   };
   _outgoing >>
       [&](const PubMsg &msg)
@@ -136,6 +136,8 @@ int BrokerRedis::connect(string node)
     INFO(" Connection %s:%d failed", _hostname.c_str(), _port);
     return ENOTCONN;
   }
+  _thread.addErrorInvoker(_subscribeContext->fd, [&](int)
+                          { INFO(" error occured "); });
   _thread.addReadInvoker(_subscribeContext->fd, [&](int)
                          {
                            redisReply *reply;
@@ -159,6 +161,7 @@ int BrokerRedis::connect(string node)
                              INFO(" reply not found ");
                              disconnect();
                              connect(_node);
+                             subscribeAll();
                            }
                          });
   _publishContext = redisConnectWithOptions(&options);
@@ -170,6 +173,19 @@ int BrokerRedis::connect(string node)
   connected = true;
   _publishContext->privdata = this;
   _subscribeContext->privdata = this;
+  return 0;
+}
+
+int BrokerRedis::subscribeAll()
+{
+  if (connected())
+  {
+    for (auto sub : _subscribers)
+    {
+      INFO(" subscribing %s",sub.c_str());
+      subscribe(sub);
+    }
+  }
   return 0;
 }
 
@@ -189,41 +205,33 @@ int BrokerRedis::disconnect()
 int BrokerRedis::subscribe(string pattern)
 {
   INFO(" REDIS psubscribe %s", pattern.c_str());
-  if (_subscribers.find(pattern) == _subscribers.end())
+  string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
+  redisReply *r = (redisReply *)redisCommand(_subscribeContext, cmd.c_str());
+  if (r)
   {
-    SubscriberStruct *sub = new SubscriberStruct({pattern});
-    string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
-    redisReply *r = (redisReply *)redisCommand(_subscribeContext, cmd.c_str());
-    if (r)
-    {
-      INFO("%s OK.", cmd.c_str());
-      _subscribers.emplace(pattern, sub);
-      freeReplyObject(r);
-    }
-    else
-    {
-      WARN("%s failed.", cmd.c_str());
-    }
+    INFO("%s OK.", cmd.c_str());
+    _subscribers.insert(pattern);
+    freeReplyObject(r);
+    return 0;
   }
   else
   {
+    WARN("%s failed.", cmd.c_str());
+    return EIO;
   }
-  return 0;
 }
 
 int BrokerRedis::unSubscribe(string pattern)
 {
   auto it = _subscribers.find(pattern);
-  if (it == _subscribers.end())
+  if (it != _subscribers.end())
   {
-  }
-  else
-  {
+    _subscribers.erase(pattern);
     redisReply *r = (redisReply *)redisCommand(
-        _subscribeContext, "PUNSUBSCRIBE %s", it->second->pattern);
+        _subscribeContext, "PUNSUBSCRIBE %s", pattern);
     if (r)
     {
-      LOGI << " PUNSUBSCRIBE : " << it->second->pattern << " created." << LEND;
+      INFO(" PUNSUBSCRIBE : %s created.", pattern.c_str());
       _subscribers.erase(pattern);
       freeReplyObject(r);
     }
@@ -242,6 +250,7 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
     WARN("Redis PUBLISH '%s' failed  : %s ", topic.c_str(), replyToString(r).c_str());
     disconnect();
     connect(_node);
+    subscribeAll();
   }
   else
   {
@@ -252,15 +261,6 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
   return 0;
 }
 
-SubscriberStruct *BrokerRedis::findSub(string pattern)
-{
-  for (auto it : _subscribers)
-  {
-    if (it.second->pattern == pattern)
-      return it.second;
-  }
-  return 0;
-}
 
 int BrokerRedis::command(const char *format, ...)
 {
@@ -277,6 +277,7 @@ int BrokerRedis::command(const char *format, ...)
       freeReplyObject(reply);
     disconnect();
     connect(_node);
+    subscribeAll();
     return EINVAL;
   }
   else
@@ -303,6 +304,7 @@ int BrokerRedis::request(string cmd, std::function<void(redisReply *)> func)
   LOGW << "command : " << cmd << " failed " << LEND;
   disconnect();
   connect(_node);
+  subscribeAll();
   return EINVAL;
 }
 
