@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
   CborSerializer cborSerializer(1024);
   CborDeserializer cborDeserializer(1024);
   TimerSource timerLatency(workerThread, 1000, true, "ticker");
-  TimerSource timerMeta(workerThread, 10000, true, "ticker");
+  TimerSource timerMeta(workerThread, 30000, true, "ticker");
 
   BrokerRedis broker(workerThread, brokerConfig);
   broker.init();
@@ -144,9 +144,9 @@ int main(int argc, char **argv) {
               .c_str());
     }
     string s;
-    if (cborDeserializer.fromBytes(msg.payload).begin().get(s).success())
+  /*  if (cborDeserializer.fromBytes(msg.payload).begin().get(s).success())
       broker.command(
-          stringFormat("SET  %s \"%s\" ", key.c_str(), s.c_str()).c_str());
+          stringFormat("SET  %s '%s'", key.c_str(), s.c_str()).c_str());*/
   };
 
   workerThread.run();

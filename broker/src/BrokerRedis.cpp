@@ -80,6 +80,10 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   _hostname = cfg["host"] | "localhost";
   _port = cfg["port"] | 6379;
 
+  _reconnectHandler.async(thread);
+  _reconnectHandler >> [&](const bool &)
+  { reconnect(); };
+
   connected >> [](const bool &connected)
   {
     LOGI << "Connection state : " << (connected ? "connected" : "disconnected")
@@ -89,7 +93,10 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   _reconnectTimer >> [&](const TimerMsg &)
   {
     if (!connected())
-      connect("");
+    {
+      if (connect(_node) == 0)
+        subscribeAll();
+    }
   };
   _incoming >> [&](const PubMsg &msg)
   {
@@ -159,9 +166,7 @@ int BrokerRedis::connect(string node)
                            else
                            {
                              INFO(" reply not found ");
-                             disconnect();
-                             connect(_node);
-                             subscribeAll();
+                             _reconnectHandler.on(true);
                            }
                          });
   _publishContext = redisConnectWithOptions(&options);
@@ -178,15 +183,29 @@ int BrokerRedis::connect(string node)
 
 int BrokerRedis::subscribeAll()
 {
+  INFO("subscribeAll again");
   if (connected())
   {
-    for (auto sub : _subscribers)
+    for (auto sub : _subscriptions)
     {
-      INFO(" subscribing %s",sub.c_str());
+      INFO(" subscribing %s", sub.c_str());
       subscribe(sub);
     }
   }
   return 0;
+}
+
+int BrokerRedis::reconnect()
+{
+  int rc;
+  disconnect();
+  if ((rc = connect(_node)) == 0)
+  {
+    subscribeAll();
+    return 0;
+  }
+  else
+    return rc;
 }
 
 int BrokerRedis::disconnect()
@@ -197,7 +216,6 @@ int BrokerRedis::disconnect()
   _thread.deleteInvoker(_subscribeContext->fd);
   redisFree(_publishContext);
   redisFree(_subscribeContext);
-  _subscribers.clear();
   connected = false;
   return 0;
 }
@@ -205,12 +223,12 @@ int BrokerRedis::disconnect()
 int BrokerRedis::subscribe(string pattern)
 {
   INFO(" REDIS psubscribe %s", pattern.c_str());
+  _subscriptions.insert(pattern);
   string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
   redisReply *r = (redisReply *)redisCommand(_subscribeContext, cmd.c_str());
   if (r)
   {
     INFO("%s OK.", cmd.c_str());
-    _subscribers.insert(pattern);
     freeReplyObject(r);
     return 0;
   }
@@ -223,16 +241,16 @@ int BrokerRedis::subscribe(string pattern)
 
 int BrokerRedis::unSubscribe(string pattern)
 {
-  auto it = _subscribers.find(pattern);
-  if (it != _subscribers.end())
+  auto it = _subscriptions.find(pattern);
+  if (it != _subscriptions.end())
   {
-    _subscribers.erase(pattern);
+    _subscriptions.erase(pattern);
     redisReply *r = (redisReply *)redisCommand(
         _subscribeContext, "PUNSUBSCRIBE %s", pattern);
     if (r)
     {
       INFO(" PUNSUBSCRIBE : %s created.", pattern.c_str());
-      _subscribers.erase(pattern);
+      _subscriptions.erase(pattern);
       freeReplyObject(r);
     }
   }
@@ -248,9 +266,7 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
   if (isFailedReply(r))
   {
     WARN("Redis PUBLISH '%s' failed  : %s ", topic.c_str(), replyToString(r).c_str());
-    disconnect();
-    connect(_node);
-    subscribeAll();
+    _reconnectHandler.on(true);
   }
   else
   {
@@ -260,7 +276,6 @@ int BrokerRedis::publish(string topic, const Bytes &bs)
   }
   return 0;
 }
-
 
 int BrokerRedis::command(const char *format, ...)
 {
@@ -272,12 +287,10 @@ int BrokerRedis::command(const char *format, ...)
   va_end(ap);
   if (isFailedReply(reply))
   {
-    INFO(" command failed : %s : %s ", format, replyToString(reply).c_str());
+    INFO(" command failed : '%s' : %s ", format, replyToString(reply).c_str());
     if (reply)
       freeReplyObject(reply);
-    disconnect();
-    connect(_node);
-    subscribeAll();
+    _reconnectHandler.on(true);
     return EINVAL;
   }
   else
@@ -301,10 +314,8 @@ int BrokerRedis::request(string cmd, std::function<void(redisReply *)> func)
     freeReplyObject(reply);
     return 0;
   }
-  LOGW << "command : " << cmd << " failed " << LEND;
-  disconnect();
-  connect(_node);
-  subscribeAll();
+  INFO("command : %s failed. ", cmd.c_str());
+  _reconnectHandler.on(true);
   return EINVAL;
 }
 

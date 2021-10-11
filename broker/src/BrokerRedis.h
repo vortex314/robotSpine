@@ -16,7 +16,7 @@ struct SubscriberStruct {
 
 class BrokerRedis : public BrokerBase {
   Thread &_thread;
-  set<string> _subscribers;
+  set<string> _subscriptions;
   int scout();
   string _hostname;
   uint16_t _port;
@@ -29,6 +29,7 @@ class BrokerRedis : public BrokerBase {
   struct event_base *_subscribeEventBase;
   TimerSource _reconnectTimer;
   static void onMessage(redisContext *c, void *reply, void *me);
+  ValueFlow<bool> _reconnectHandler;
 
  public:
   ValueFlow<bool> connected;
@@ -38,6 +39,7 @@ class BrokerRedis : public BrokerBase {
   int init();
   int connect(string);
   int disconnect();
+  int reconnect();
   int publish(string, const Bytes &);
   int onSubscribe(SubscribeCallback);
   int unSubscribe(string);
