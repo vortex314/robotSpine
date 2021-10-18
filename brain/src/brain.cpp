@@ -85,17 +85,20 @@ int main(int argc, char **argv) {
   CborDeserializer cborDeserializer(1024);
   TimerSource timerLatency(workerThread, 1000, true, "ticker");
   TimerSource timerMeta(workerThread, 30000, true, "ticker");
+  uint64_t startTime =Sys::millis();
 
   BrokerRedis broker(workerThread, brokerConfig);
   broker.init();
   int rc = broker.connect("brain");
   TimeoutFlow<uint64_t> fl(workerThread, 2000);
 
-  auto &pub = broker.publisher<uint64_t>("src/brain/system/uptime");
+  auto &pubUptime = broker.publisher<uint64_t>("src/brain/system/uptime");
+  auto &pubLoopback = broker.publisher<uint64_t>("src/brain/system/loopback");
 
   timerLatency >> [&](const TimerMsg &) {
-    INFO("pub");
-    pub.on(Sys::micros());
+    INFO("pub %lu ",Sys::micros());
+    pubUptime.on(Sys::millis()-startTime);
+    pubLoopback.on(Sys::micros());
   };
   timerMeta >> [&](const TimerMsg &) {
     broker.request("keys *", [&](redisReply *reply) {
@@ -114,11 +117,12 @@ int main(int argc, char **argv) {
     });
   };
 
-  broker.subscriber<uint64_t>("src/brain/system/uptime") >>
+  broker.subscriber<uint64_t>("src/brain/system/loopback") >>
       *new LambdaFlow<uint64_t, uint64_t>(
           [&](uint64_t &out, const uint64_t &in) {
-            out = Sys::micros() - in;
-            INFO(" src/brain/system/uptime : %lu", in);
+            uint64_t now =  Sys::micros();
+            out = now - in;
+            INFO(" src/brain/system/loopback in : %lu now : %lu delta :%lu ", in,now,out );
             return true;
           }) >>
       broker.publisher<uint64_t>("src/brain/system/latency");

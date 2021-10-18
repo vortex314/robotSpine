@@ -144,11 +144,30 @@ int BrokerRedis::connect(string node)
     return ENOTCONN;
   }
   _thread.addErrorInvoker(_subscribeContext->fd, [&](int)
-                          { INFO(" error occured "); });
+                          {
+                            INFO(" error occured ");
+                            _reconnectHandler.on(true);
+                          });
   _thread.addReadInvoker(_subscribeContext->fd, [&](int)
                          {
                            redisReply *reply;
-                           int rc = redisGetReply(_subscribeContext, (void **)&reply);
+
+                           redisBufferRead(_subscribeContext);
+                           while (redisGetReplyFromReader(_subscribeContext, (void**)&reply) == REDIS_OK && reply )
+                           {
+                             if (reply->type == REDIS_REPLY_ARRAY &&
+                                 strcmp(reply->element[0]->str, "pmessage") == 0)
+                             {
+                               onMessage(_subscribeContext, reply, this);
+                             }
+                             else
+                             {
+                               INFO(" reply not handled %s ",replyToString(reply).c_str());
+                             }
+                             freeReplyObject(reply);
+                           }
+
+                           /*                       int rc = redisGetReply(_subscribeContext, (void **)&reply);
                            if (rc == 0)
                            {
                              if (reply->type == REDIS_REPLY_ARRAY &&
@@ -167,7 +186,7 @@ int BrokerRedis::connect(string node)
                            {
                              INFO(" reply not found ");
                              _reconnectHandler.on(true);
-                           }
+                           }*/
                          });
   _publishContext = redisConnectWithOptions(&options);
   if (_publishContext == NULL || _publishContext->err)

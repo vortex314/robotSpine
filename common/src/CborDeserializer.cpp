@@ -138,7 +138,7 @@ CborDeserializer &CborDeserializer::get(double &t)
   {
     _err = cbor_value_get_double(&_it, &t);
     if (!_err)
-      _err = cbor_value_advance(&_it);
+      _err = cbor_value_advance_fixed(&_it);
   }
   else
   {

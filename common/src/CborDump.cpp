@@ -43,9 +43,7 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
 
     indent(ss, nestingLevel);
     if (first)
-    {
       first = false;
-    }
     else
       ss << ",";
     switch (type)
@@ -174,9 +172,10 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
     case CborDoubleType:
     {
       double val;
+      etl::format_spec format =  etl::format_spec().precision(6);
       ret = cbor_value_get_double(it, &val);
       CBOR_CHECK(ret, "parse double float type failed", err, ret);
-      ss << val << ",";
+      ss << etl::setprecision(6) << val << ",";
       break;
     }
     case CborInvalidType:
