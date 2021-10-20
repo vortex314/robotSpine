@@ -14,10 +14,7 @@ using namespace std;
 
 LogS logger;
 
-#include <BrokerRedis.h>
-#include <CborDeserializer.h>
-#include <CborDump.h>
-#include <CborSerializer.h>
+#include <BrokerRedisJson.h>
 StaticJsonDocument<10240> doc;
 
 Config loadConfig(int argc, char **argv) {
@@ -81,8 +78,6 @@ int main(int argc, char **argv) {
   Thread workerThread("worker");
   Config brokerConfig = config["broker"];
   TimerSource pubTimer(workerThread, 2000, true, "pubTimer");
-  CborSerializer cborSerializer(1024);
-  CborDeserializer cborDeserializer(1024);
   TimerSource timerLatency(workerThread, 1000, true, "ticker");
   TimerSource timerMeta(workerThread, 30000, true, "ticker");
   uint64_t startTime =Sys::millis();
@@ -131,23 +126,25 @@ int main(int argc, char **argv) {
   broker.incoming() >> [&](const PubMsg &msg) {
     //    broker.command(stringFormat("SET %s \%b", key.c_str()).c_str(),
     //    bs.data(), bs.size());
+    DynamicJsonDocument doc(1024);
     vector<string> parts = split(msg.topic, '/');
     string key = msg.topic;
     int64_t i64;
-    if (cborDeserializer.fromBytes(msg.payload).begin().get(i64).success()) {
+    if (deserializeJson(doc,msg.payload)==DeserializationError::Ok && doc.is<int64_t>() ) {
+      i64 =  doc.as<int64_t>();
       broker.command(stringFormat("SET %s %ld ", key.c_str(), i64).c_str());
       broker.command(
           stringFormat("TS.ADD ts:%s %lu %ld", key.c_str(), Sys::millis(), i64)
               .c_str());
     }
-    double d;
+/*    double d;
     if (cborDeserializer.fromBytes(msg.payload).begin().get(d).success()) {
       broker.command(stringFormat("SET %s %f ", key.c_str(), d).c_str());
       broker.command(
           stringFormat("TS.ADD ts:%s %lu %f", key.c_str(), Sys::millis(), d)
               .c_str());
     }
-    string s;
+    string s;*/
   /*  if (cborDeserializer.fromBytes(msg.payload).begin().get(s).success())
       broker.command(
           stringFormat("SET  %s '%s'", key.c_str(), s.c_str()).c_str());*/

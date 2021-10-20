@@ -105,14 +105,11 @@ ${LINUX}/limero.cpp
   src/serial.cpp 
   src/SessionUdp.cpp
   src/Udp.cpp 
-  ${BROKER}/BrokerRedis.cpp
+  ${BROKER}/BrokerRedisJson.cpp
   ${LINUX}/logger.cpp
   ${LINUX}/Sys.cpp
   ${LINUX}/limero.cpp
   ${COMMON}/ppp_frame.cpp 
-  ${COMMON}/CborSerializer.cpp
-  ${COMMON}/CborDeserializer.cpp
-  ${COMMON}/CborDump.cpp
   ${COMMON}/Frame.cpp
   ${COMMON}/util.cpp ) 
 

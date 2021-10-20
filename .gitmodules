@@ -7,3 +7,6 @@
 [submodule "hiredis"]
 	path = hiredis
 	url = https://github.com/redis/hiredis.git
+[submodule "ArduinoJson"]
+	path = ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson.git

@@ -39,14 +39,12 @@ include_directories(
   ${BROKER}
 /home/lieven/workspace/ArduinoJson/src )
 
+
 target_sources(redis-brain PRIVATE
 ${LINUX}/Sys.cpp
 ${LINUX}/limero.cpp
 ${LINUX}/logger.cpp
-${COMMON}/CborSerializer.cpp
-${COMMON}/CborDeserializer.cpp
-${BROKER}/BrokerRedis.cpp
-${COMMON}/CborDump.cpp
+${BROKER}/BrokerRedisJson.cpp
 src/brain.cpp
 ${COMMON}/util.cpp )
 
