@@ -14,7 +14,7 @@
                 "${workspaceFolder}/../hiredis",
                 "${workspaceFolder}/../etl/include",
                 "${workspaceFolder}/src/",
-                "${workspaceFolder}/../../ArduinoJson/src"
+                "${workspaceFolder}/../ArduinoJson/src"
             ],
             "defines": [
                 "NOTHING",

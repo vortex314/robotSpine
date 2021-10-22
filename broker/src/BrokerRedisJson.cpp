@@ -1,6 +1,47 @@
 
 #include <BrokerRedisJson.h>
 
+BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
+    : _thread(thread),_incoming(10, "incoming"), _outgoing(10, "outgoing"),
+      _reconnectTimer(thread, 3000, true, "reconnectTimer")
+{
+  _hostname = cfg["host"] | "localhost";
+  _port = cfg["port"] | 6379;
+
+  _reconnectHandler.async(thread);
+  _reconnectHandler >> [&](const bool &)
+  { reconnect(); };
+
+  connected >> [](const bool &connected)
+  {
+    LOGI << "Connection state : " << (connected ? "connected" : "disconnected")
+         << LEND;
+  };
+  connected = false;
+  _reconnectTimer >> [&](const TimerMsg &)
+  {
+    if (!connected())
+    {
+      if (connect(_node) == 0)
+        subscribeAll();
+    }
+  };
+  _incoming >> [&](const PubMsg &msg)
+  {
+    DEBUG("Redis RXD %s %s ", msg.topic.c_str(),msg.payload.c_str());
+  };
+  _outgoing >>
+      [&](const PubMsg &msg)
+  {
+    DEBUG("publish %s %s ", msg.topic.c_str(), msg.payload.c_str());
+    publish(msg.topic, msg.payload);
+  };
+}
+
+BrokerRedis::~BrokerRedis(){
+  
+}
+
 void BrokerRedis::onMessage(redisContext *c, void *reply, void *me)
 {
   BrokerRedis *pBroker = (BrokerRedis *)me;
@@ -71,42 +112,7 @@ string BrokerRedis::replyToString(void *r)
   return "XXX";
 }
 
-BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
-    : _thread(thread),_incoming(10, "incoming"), _outgoing(10, "outgoing"),
-      _reconnectTimer(thread, 3000, true, "reconnectTimer")
-{
-  _hostname = cfg["host"] | "localhost";
-  _port = cfg["port"] | 6379;
 
-  _reconnectHandler.async(thread);
-  _reconnectHandler >> [&](const bool &)
-  { reconnect(); };
-
-  connected >> [](const bool &connected)
-  {
-    LOGI << "Connection state : " << (connected ? "connected" : "disconnected")
-         << LEND;
-  };
-  connected = false;
-  _reconnectTimer >> [&](const TimerMsg &)
-  {
-    if (!connected())
-    {
-      if (connect(_node) == 0)
-        subscribeAll();
-    }
-  };
-  _incoming >> [&](const PubMsg &msg)
-  {
-    DEBUG("Redis RXD %s %s ", msg.topic.c_str(),msg.payload.c_str());
-  };
-  _outgoing >>
-      [&](const PubMsg &msg)
-  {
-    DEBUG("publish %s %s ", msg.topic.c_str(), msg.payload.c_str());
-    publish(msg.topic, msg.payload);
-  };
-}
 
 void free_privdata(void *pvdata) {}
 

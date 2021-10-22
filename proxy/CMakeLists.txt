@@ -67,53 +67,43 @@ set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -g -DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP 
 set (CMAKE_CXX_STANDARD 11)
 
 add_executable(serialProxy)
-
+#[[
 add_executable(redis-elastic)
 
 add_executable(test)
 add_executable(redis-test)
 add_executable(udp-client)
 add_executable(proxy-cli)
-
+]]
 target_compile_options(serialProxy PRIVATE "-DBROKER_REDIS")
-target_compile_options(redis-elastic PRIVATE "-DBROKER_REDIS")
 
-target_sources(test PRIVATE 
-${LINUX}/limero.cpp
-  src/test.cpp 
-  ${LINUX}/logger.cpp
-  ${LINUX}/Sys.cpp
-  ${COMMON}/CborSerializer.cpp
-  ${COMMON}/CborDeserializer.cpp
-  ${COMMON}/CborDump.cpp
- ) 
 
- target_sources(redis-test PRIVATE 
- ${LINUX}/limero.cpp
- src/redis-test.cpp 
- ${LINUX}/logger.cpp
- ${LINUX}/Sys.cpp
-  ${COMMON}/CborSerializer.cpp
-  ${COMMON}/CborDeserializer.cpp
-  ${COMMON}/CborDump.cpp
- ) 
+target_sources(serialProxy PRIVATE 
+    src/serialProxy.cpp 
+    src/config.cpp 
+    src/SessionSerial.cpp
+    src/serial.cpp 
+    ${BROKER}/BrokerRedisJson.cpp
+    ${LINUX}/logger.cpp
+    ${LINUX}/Sys.cpp
+    ${LINUX}/limero.cpp
+    ${COMMON}/ppp_frame.cpp 
+    ${COMMON}/Frame.cpp
+    ${COMMON}/util.cpp 
+    ) 
 
-  target_sources(serialProxy PRIVATE 
-  src/serialProxy.cpp 
-  src/config.cpp 
-  src/SessionSerial.cpp
-  src/serial.cpp 
-  src/SessionUdp.cpp
-  src/Udp.cpp 
-  ${BROKER}/BrokerRedisJson.cpp
-  ${LINUX}/logger.cpp
-  ${LINUX}/Sys.cpp
-  ${LINUX}/limero.cpp
-  ${COMMON}/ppp_frame.cpp 
-  ${COMMON}/Frame.cpp
-  ${COMMON}/util.cpp ) 
+#[[
+  target_sources(test PRIVATE 
+      ${LINUX}/limero.cpp
+      src/test.cpp 
+      ${LINUX}/logger.cpp
+      ${LINUX}/Sys.cpp
+      ${COMMON}/CborSerializer.cpp
+      ${COMMON}/CborDeserializer.cpp
+      ${COMMON}/CborDump.cpp
+    ) 
 
-  target_sources(proxy-cli PRIVATE 
+target_sources(proxy-cli PRIVATE 
   src/proxyCli.cpp 
   src/config.cpp 
   src/SessionSerial.cpp
@@ -131,6 +121,15 @@ ${LINUX}/limero.cpp
   ${COMMON}/Frame.cpp
   ${COMMON}/util.cpp ) 
 
+  target_sources(redis-test PRIVATE 
+  ${LINUX}/limero.cpp
+  src/redis-test.cpp 
+  ${LINUX}/logger.cpp
+  ${LINUX}/Sys.cpp
+  ${COMMON}/CborSerializer.cpp
+  ${COMMON}/CborDeserializer.cpp
+  ${COMMON}/CborDump.cpp
+) 
 
 target_sources(redis-elastic PRIVATE
 ${LINUX}/Sys.cpp
@@ -138,7 +137,7 @@ ${LINUX}/limero.cpp
 ${LINUX}/logger.cpp
 ${COMMON}/CborSerializer.cpp
 ${COMMON}/CborDeserializer.cpp
-${BROKER}/BrokerRedis.cpp
+${BROKER}/BrokerRedisJson.cpp
 ${COMMON}/CborDump.cpp
 src/redis-elastic.cpp
 ${COMMON}/util.cpp )
@@ -153,6 +152,7 @@ ${COMMON}/CborDump.cpp
 src/udp_client.cpp
 src/Udp.cpp
 ${COMMON}/util.cpp )
+]]
 
 target_link_libraries(serialProxy 
 -L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
@@ -161,6 +161,7 @@ target_link_libraries(serialProxy
 -lrt  
 -latomic)
 
+#[[
 target_link_libraries(proxy-cli 
 -L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
 -lpthread  
@@ -211,3 +212,5 @@ gtest_main
 
 include(GoogleTest)
 gtest_discover_tests(test)
+
+]]

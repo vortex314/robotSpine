@@ -2,13 +2,32 @@
 #include <SessionSerial.h>
 #include <ppp_frame.h>
 
+class BytesToString : public LambdaFlow<Bytes, String> {
+ public:
+  BytesToString()
+      : LambdaFlow<Bytes, String>([&](String &out, const Bytes &in) {
+          out = String((const char *)in.data(),
+                       (const char *)(in.data() + in.size()));
+          return true;
+        }){};
+};
+
+class StringToBytes : public LambdaFlow<String, Bytes> {
+ public:
+  StringToBytes()
+      : LambdaFlow<String, Bytes>([&](Bytes &out, const String &in) {
+          out = Bytes(in.data(), in.data() + in.length());
+          return true;
+        }){};
+};
+
 SessionSerial::SessionSerial(Thread &thread, Config config)
     : SessionAbstract(thread, config),
       _incomingMessage(10, "_incomingMessage"),
       _outgoingMessage(10, "_outgoingMessage"),
       _incomingSerial(10, "_incomingSerial") {
   _errorInvoker = new SerialSessionError(*this);
-  _port = config["port"].as<std::string>();
+  _port = config["port"].as<String>();
   _baudrate = config["baudrate"].as<uint32_t>();
   _incomingSerial.async(thread);
   _outgoingMessage.async(thread);
@@ -19,15 +38,16 @@ bool SessionSerial::init() {
   _serialPort.port(_port);
   _serialPort.baudrate(_baudrate);
   _serialPort.init();
-  _incomingSerial >> bytesToFrame >> _incomingMessage;
-  bytesToFrame.logs >> _logs;
-  _outgoingMessage >> frameToBytes >> [&](const Bytes &data) {
-    //        INFO("TXD %s => %s", _serialPort.port().c_str(),
-    //        hexDump(data).c_str());
-    _serialPort.txd(data);
-  };
+  _incomingSerial >> bytesToFrame >> new BytesToString() >> _incomingMessage;
+  bytesToFrame.logs >> new BytesToString() >> _logs;
+  _outgoingMessage >> new StringToBytes() >> frameToBytes >>
+      [&](const Bytes &data) {
+        //        INFO("TXD %s => %s", _serialPort.port().c_str(),
+        //        hexDump(data).c_str());
+        _serialPort.txd(data);
+      };
   _outgoingMessage >>
-      [&](const bytes &bs) { INFO("TXD %s", cborDump(bs).c_str()); };
+      [&](const String &bs) { INFO("TXD %s",bs.c_str()); };
   return true;
 }
 
@@ -62,12 +82,12 @@ void SessionSerial::onError() {
 
 int SessionSerial::fd() { return _serialPort.fd(); }
 
-Source<Bytes> &SessionSerial::incoming() { return _incomingMessage; }
+Source<String> &SessionSerial::incoming() { return _incomingMessage; }
 
-Sink<Bytes> &SessionSerial::outgoing() { return _outgoingMessage; }
+Sink<String> &SessionSerial::outgoing() { return _outgoingMessage; }
 
 Source<bool> &SessionSerial::connected() { return _connected; }
 
-Source<Bytes> &SessionSerial::logs() { return _logs; }
+Source<String> &SessionSerial::logs() { return _logs; }
 
 string SessionSerial::port() { return _port; }

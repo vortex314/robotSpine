@@ -11,17 +11,11 @@
 using namespace std;
 
 LogS logger;
-#ifdef BROKER_ZENOH
-#include <BrokerZenoh.h>
-#endif
-#ifdef BROKER_REDIS
-#include <BrokerRedisJon.h>
-#endif
+
 #include <Frame.h>
-#include <ReflectToDisplay.h>
 #include <SessionSerial.h>
-#include <SessionUdp.h>
 #include <broker_protocol.h>
+#include "BrokerRedisJson.h"
 const int MsgPublish::TYPE;
 
 //====================================================
@@ -91,8 +85,9 @@ bool writeBytesToFile(string fileName, const Bytes &data) {
   return wf.good();
 }
 
-bool flashFileToDevice(Sink<Bytes>& logStream,string fileName, string port, uint32_t baudrate) {
-  string cmd= "ls -l  ";
+bool flashFileToDevice(Sink<Bytes> &logStream, string fileName, string port,
+                       uint32_t baudrate) {
+  string cmd = "ls -l  ";
   char buffer[128];
   FILE *pipe = popen(cmd.c_str(), "r");
   if (!pipe) {
@@ -101,8 +96,8 @@ bool flashFileToDevice(Sink<Bytes>& logStream,string fileName, string port, uint
   }
   try {
     while (fgets(buffer, sizeof buffer, pipe) != NULL) {
-      INFO("LOG ===> %s ",buffer);
-      Bytes bs((uint8_t)*buffer,(uint8_t)*buffer+strlen(buffer));
+      INFO("LOG ===> %s ", buffer);
+      Bytes bs((uint8_t)*buffer, (uint8_t)*buffer + strlen(buffer));
       logStream.on(bs);
     }
   } catch (...) {
@@ -155,24 +150,16 @@ int main(int argc, char **argv) {
   string dstPrefix;
   string srcPrefix;
 
-  SessionAbstract *session;
-  if (config["serial"])
-    session = new SessionSerial(workerThread, config["serial"]);
-  else if (config["udp"])
-    session = new SessionUdp(workerThread, config["udp"]);
-  else
-    fatal(" no interface specified.");
+  SessionSerial serialSession(workerThread, config["serial"]);
   Config brokerConfig = config["broker"];
 
   INFO(" Launching Redis");
   BrokerRedis broker(workerThread, brokerConfig);
   BrokerRedis brokerProxy(workerThread, brokerConfig);
-  CborDeserializer fromCbor(1024);
-  CborSerializer toCbor(1024);
   string nodeName;
   string portName = config["serial"]["port"];
-  session->init();
-  session->connect();
+  serialSession.init();
+  serialSession.connect();
   // zSession.scout();
   broker.init();
   broker.connect("serial");
@@ -180,74 +167,53 @@ int main(int argc, char **argv) {
   brokerProxy.connect(config["serial"]["port"]);
   // CBOR de-/serialization
 
-  session->incoming() >>
-      [&](const bytes &bs) { INFO("RXD %s", cborDump(bs).c_str()); };
+  serialSession.incoming() >>
+      [&](const String &s) { INFO("RXD %s", s.c_str()); };
 
   // filter commands from uC
-  auto getPubMsg =
-      new LambdaFlow<Bytes, PubMsg>([&](PubMsg &msg, const Bytes &frame) {
-        int msgType;
-        return fromCbor.fromBytes(frame)
-                   .begin()
-                   .get(msgType)
-                   .get(msg.topic)
-                   .get(msg.payload)
-                   .end()
-                   .success() &&
-               msgType == B_PUBLISH;
-      });
-
-  auto getSubMsg =
-      new LambdaFlow<Bytes, SubMsg>([&](SubMsg &msg, const Bytes &frame) {
-        int msgType;
-        return fromCbor.fromBytes(frame)
-                   .begin()
-                   .get(msgType)
-                   .get(msg.pattern)
-                   .success() &&
-               msgType == B_SUBSCRIBE;
-      });
-
-  auto getNodeMsg =
-      new LambdaFlow<Bytes, NodeMsg>([&](NodeMsg &msg, const Bytes &frame) {
-        int msgType;
-        return fromCbor.fromBytes(frame)
-                   .begin()
-                   .get(msgType)
-                   .get(msg.node)
-                   .success() &&
-               msgType == B_NODE;
-      });
-
-  session->incoming() >> getPubMsg >> [&](const PubMsg &msg) {
-    INFO("PUBLISH %s %s ", msg.topic.c_str(), cborDump(msg.payload).c_str());
-    broker.publish(msg.topic, msg.payload);
-  };
-  session->incoming() >> getSubMsg >>
-      [&](const SubMsg &msg) { broker.subscribe(msg.pattern); };
-
-  session->incoming() >> getNodeMsg >> [&](const NodeMsg &msg) {
-    INFO("NODE %s", msg.node.c_str());
-    nodeName = msg.node;
-    std::string topic = "dst/";
-    topic += msg.node;
-    topic += "/*";
-    broker.subscribe(topic);
-    topic = "dst/";
-    topic += msg.node;
-    topic += "-proxy/*";
-    brokerProxy.subscribe(topic);
-  };
+  auto getAnyMsg = new SinkFunction<String>([&](const String &frame) {
+    int msgType;
+    DynamicJsonDocument doc(1024);
+    DeserializationError rc = deserializeJson(doc, frame);
+    if (rc == DeserializationError::Ok && doc.is<JsonArray>()) {
+      msgType = doc.as<JsonArray>()[0];
+      String arg1 = doc.as<JsonArray>()[1].as<String>();
+      switch (msgType) {
+        case B_PUBLISH: {
+          JsonVariant payload = doc.as<JsonArray>()[1].as<JsonVariant>();
+          String arg2;
+          serializeJson(payload, arg2);
+          broker.publish(arg1, arg2);
+          break;
+        }
+        case B_SUBSCRIBE: {
+          broker.subscribe(arg1);
+          break;
+        }
+        case B_NODE: {
+          String topic = "dst/";
+          topic += arg1;
+          topic += "/*";
+          broker.subscribe(topic);
+          topic = "dst/";
+          topic += arg1;
+          topic += "-proxy/*";
+          brokerProxy.subscribe(topic);
+          break;
+        }
+      };
+    }
+  });
 
   /* getPubMsg >> [&](const PubMsg &msg) {
      INFO("PUBLISH %s %s ", msg.topic, cborDump(msg.payload).c_str());
    };*/
 
-  SinkFunction<Bytes> redisLogStream([&](const Bytes &bs) {
-    static string buffer;
+  SinkFunction<String> redisLogStream([&](const String &bs) {
+    static String buffer;
     for (uint8_t b : bs) {
       if (b == '\n') {
-        printf("%s%s%s\n",ColorOrange,buffer.c_str(),ColorDefault);
+        printf("%s%s%s\n", ColorOrange, buffer.c_str(), ColorDefault);
         broker.command("XADD logs * node %s message %s ", nodeName.c_str(),
                        buffer.c_str());
         buffer.clear();
@@ -258,37 +224,25 @@ int main(int argc, char **argv) {
     }
   });
 
-  session->logs() >> redisLogStream;
+  serialSession.logs() >> redisLogStream;
 
-/*
-      ::write(1, ColorOrange, strlen(ColorOrange));
-    ::write(1, bs.data(), bs.size());
-    ::write(1, ColorDefault, strlen(ColorDefault));
-*/ 
+  /*
+        ::write(1, ColorOrange, strlen(ColorOrange));
+      ::write(1, bs.data(), bs.size());
+      ::write(1, ColorDefault, strlen(ColorDefault));
+  */
   broker.incoming() >>
-      new LambdaFlow<PubMsg, Bytes>([&](Bytes &bs, const PubMsg &msg) {
-        bs = toCbor.begin()
-                 .add(MsgPublish::TYPE)
-                 .add(msg.topic)
-                 .add(msg.payload)
-                 .end()
-                 .toBytes();
-        return toCbor.success();
+      new LambdaFlow<PubMsg, String>([&](String &msg, const PubMsg &pub) {
+        DynamicJsonDocument doc(1024), variant(1024);
+        deserializeJson(variant, pub.payload);
+        JsonArray array = doc.as<JsonArray>();
+        array.add(B_PUBLISH);
+        array.add(pub.topic);
+        array.add(variant.as<JsonVariant>());
+        serializeJson(doc, msg);
+        return true;
       }) >>
-      session->outgoing();
-
-  brokerProxy.incoming() >> [&](const PubMsg &msg) {
-    string dstPrefix = stringFormat("dst/%s-proxy/", nodeName.c_str());
-    if (msg.topic == (dstPrefix + "prog/flash")) {
-      INFO(" received flash image : %d bytes ", msg.payload.size());
-      session->disconnect();
-      if (writeBytesToFile("image.bin", msg.payload)) {
-        flashFileToDevice(redisLogStream,"image.bin", portName, 921600);
-      }
-      session->connect();
-    }
-  };
+      serialSession.outgoing();
 
   workerThread.run();
-  delete session;
 }

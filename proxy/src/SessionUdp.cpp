@@ -42,9 +42,9 @@ void SessionUdp::onError() {
 
 int SessionUdp::fd() { return _udp.fd(); }
 
-Source<Bytes> &SessionUdp::incoming() { return _incomingMessage; }
+Source<std::string> &SessionUdp::incoming() { return _incomingMessage; }
 
-Sink<Bytes> &SessionUdp::outgoing() { return _outgoingMessage; }
+Sink<std::string> &SessionUdp::outgoing() { return _outgoingMessage; }
 
 Source<bool> &SessionUdp::connected() { return _connected; }
-Source<Bytes> &SessionUdp::logs() { return _logs; }
+Source<std::string> &SessionUdp::logs() { return _logs; }

@@ -49,6 +49,7 @@ public:
   Source<PubMsg> &incoming() { return _incoming; };
 
   BrokerRedis(Thread &, Config);
+  ~BrokerRedis();
   int init();
   int connect(string);
   int disconnect();

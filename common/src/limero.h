@@ -10,6 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
+typedef std::vector<uint8_t> Bytes;
+typedef std::string String;
+
 #define STRINGIFY(X) #X
 #define S(X) STRINGIFY(X)
 // ------------------------------------------------- Linux

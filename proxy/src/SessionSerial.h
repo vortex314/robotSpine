@@ -23,10 +23,10 @@ class SessionSerial : public SessionAbstract {
   BytesToFrame bytesToFrame;
   FrameToBytes frameToBytes;
   QueueFlow<Bytes> _incomingSerial;
-  QueueFlow<Bytes> _incomingMessage;
-  QueueFlow<Bytes> _outgoingMessage;
+  QueueFlow<String> _incomingMessage;
+  QueueFlow<String> _outgoingMessage;
   ValueFlow<bool> _connected;
-  ValueFlow<Bytes> _logs;
+  ValueFlow<String> _logs;
 
  public:
   //  ValueSource<TcpCommand> command;
@@ -37,10 +37,10 @@ class SessionSerial : public SessionAbstract {
   void onError();
   int fd();
   void invoke();
-  Source<Bytes> &incoming();
-  Sink<Bytes> &outgoing();
+  Source<String> &incoming();
+  Sink<String> &outgoing();
   Source<bool> &connected();
-  Source<Bytes> &logs();
+  Source<String> &logs();
   string port();
 };
 
