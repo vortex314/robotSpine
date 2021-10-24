@@ -44,6 +44,7 @@ set(HIREDIS ../hiredis )
 set(BROKER ../broker/src)
 set(LINUX ../linux/src)
 set(TINYCBOR ../tinycbor )
+set(JSON ../json )
 set(ETL ../etl )
 set(COMMON ../common/src )
 
@@ -53,6 +54,7 @@ include_directories(
   /usr/local/include
   ${COMMON}
   ${TINYCBOR}/src
+  ${JSON}/single_include
   ${ETL}/include
   ${HIREDIS}
   ${BROKER}

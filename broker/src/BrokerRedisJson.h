@@ -3,10 +3,12 @@
 //#include <async.h>
 #include <hiredis.h>
 #include <log.h>
+#include <broker_protocol.h>
 
 #include "limero.h"
 #include <set>
-#include <ArduinoJson.h>
+#include <nlohmann/json.hpp>
+using Json = nlohmann::json;
 
 typedef int (*SubscribeCallback)(int, string);
 
@@ -66,48 +68,38 @@ public:
   int getId(string);
   int newRedisPublisher(string topic);
   vector<PubMsg> query(string);
-  string replyToString(void *r);
+  static string replyToString(void *r);
+
 
   template <typename T>
-  Sink<T> &publisher(TopicName topic)
-  {
-    std::string absTopic = _srcPrefix + topic;
+  Sink<T> &publisher(String topic) {
+    String absTopic = _srcPrefix + topic;
     if (topic.rfind("src/", 0) == 0 || topic.rfind("dst/", 0) == 0)
       absTopic = topic;
-    SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t)
-                                              {
-                                                DynamicJsonDocument doc(1024);
-                                                JsonVariant variant = doc.to<JsonVariant>();
-                                                variant.set(t);
-                                                std::string result;
-                                                serializeJson(doc, result);
-                                                _outgoing.on({absTopic, result});
-                                              });
+    SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t) {
+      Json json =  t;
+      _outgoing.on({absTopic,json.dump()});
+    });
     return *sf;
   }
+
   template <typename T>
-  Source<T> &subscriber(std::string pattern)
-  {
-    std::string absPattern = _dstPrefix + pattern;
+  Source<T> &subscriber(String pattern) {
+    String absPattern = _dstPrefix + pattern;
     if (pattern.rfind("src/", 0) == 0 || pattern.rfind("dst/", 0) == 0)
       absPattern = pattern;
-    auto lf = new LambdaFlow<PubMsg, T>([&, absPattern](T &t, const PubMsg &msg)
-                                        {
-                                          if (msg.topic == absPattern || match(absPattern, msg.topic))
-                                          {
-                                            DynamicJsonDocument doc(1024);
-                                            DeserializationError rc = deserializeJson(doc, msg.payload);
-                                            if (rc == DeserializationError::Ok)
-                                            {
-                                              t = doc.as<T>();
-                                              return true;
-                                            }
-                                          }
-                                          return false;
-                                        });
+    auto lf = new LambdaFlow<PubMsg, T>([&, absPattern](T &t, const PubMsg &msg) {
+//      INFO(" %s vs %s ",msg.topic.c_str(),absPattern.c_str());
+      if (msg.topic == absPattern /*|| match(absPattern, msg.topic)*/) {
+        Json::parse(msg.payload).get_to<T>(t);
+        return true;
+      }
+      return false;
+    });
     _incoming >> lf;
     return *lf;
   }
+  
 };
 
 // namespace zenoh

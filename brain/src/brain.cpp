@@ -1,4 +1,5 @@
-#include <ArduinoJson.h>
+#include <nlohmann/json.hpp>
+using Json = nlohmann::json;
 #include <config.h>
 #include <limero.h>
 #include <log.h>
@@ -15,15 +16,18 @@ using namespace std;
 LogS logger;
 
 #include <BrokerRedisJson.h>
-StaticJsonDocument<10240> doc;
 
 Config loadConfig(int argc, char **argv) {
-  Config cfg = doc.to<JsonObject>();
+  Config cfg;
   // defaults
   cfg["serial"]["port"] = "/dev/ttyUSB0";
   cfg["serial"]["baudrate"] = 115200;
   cfg["broker"]["host"] = "localhost";
   cfg["broker"]["port"] = 6379;
+  String s = cfg.dump(2);
+  printf("%s\n",s.c_str());
+  INFO("%s", s.c_str());
+
   // override args
   int c;
   while ((c = getopt(argc, argv, "h:p:s:b:")) != -1) switch (c) {
@@ -49,9 +53,7 @@ Config loadConfig(int argc, char **argv) {
         abort();
     }
 
-  string sCfg;
-  serializeJson(doc, sCfg);
-  LOGI << sCfg << LEND;
+  INFO("%s", cfg.dump(2).c_str());
   return cfg;
 };
 
@@ -80,7 +82,7 @@ int main(int argc, char **argv) {
   TimerSource pubTimer(workerThread, 2000, true, "pubTimer");
   TimerSource timerLatency(workerThread, 1000, true, "ticker");
   TimerSource timerMeta(workerThread, 30000, true, "ticker");
-  uint64_t startTime =Sys::millis();
+  uint64_t startTime = Sys::millis();
 
   BrokerRedis broker(workerThread, brokerConfig);
   broker.init();
@@ -91,8 +93,8 @@ int main(int argc, char **argv) {
   auto &pubLoopback = broker.publisher<uint64_t>("src/brain/system/loopback");
 
   timerLatency >> [&](const TimerMsg &) {
-    INFO("pub %lu ",Sys::micros());
-    pubUptime.on(Sys::millis()-startTime);
+    INFO("pub %lu ", Sys::micros());
+    pubUptime.on(Sys::millis() - startTime);
     pubLoopback.on(Sys::micros());
   };
   timerMeta >> [&](const TimerMsg &) {
@@ -115,9 +117,10 @@ int main(int argc, char **argv) {
   broker.subscriber<uint64_t>("src/brain/system/loopback") >>
       *new LambdaFlow<uint64_t, uint64_t>(
           [&](uint64_t &out, const uint64_t &in) {
-            uint64_t now =  Sys::micros();
+            uint64_t now = Sys::micros();
             out = now - in;
-            INFO(" src/brain/system/loopback in : %lu now : %lu delta :%lu ", in,now,out );
+            INFO(" src/brain/system/loopback in : %lu now : %lu delta :%lu ",
+                 in, now, out);
             return true;
           }) >>
       broker.publisher<uint64_t>("src/brain/system/latency");
@@ -126,28 +129,44 @@ int main(int argc, char **argv) {
   broker.incoming() >> [&](const PubMsg &msg) {
     //    broker.command(stringFormat("SET %s \%b", key.c_str()).c_str(),
     //    bs.data(), bs.size());
-    DynamicJsonDocument doc(1024);
+//    INFO("%s:%s",msg.topic.c_str(),msg.payload.c_str());
     vector<string> parts = split(msg.topic, '/');
     string key = msg.topic;
-    int64_t i64;
-    if (deserializeJson(doc,msg.payload)==DeserializationError::Ok && doc.is<int64_t>() ) {
-      i64 =  doc.as<int64_t>();
-      broker.command(stringFormat("SET %s %ld ", key.c_str(), i64).c_str());
-      broker.command(
-          stringFormat("TS.ADD ts:%s %lu %ld", key.c_str(), Sys::millis(), i64)
-              .c_str());
+    Json json = Json::parse(msg.payload);
+    switch (json.type()) {
+      case Json::value_t::number_unsigned: {
+        uint64_t ui64 = json.get<uint64_t>();
+        broker.command(stringFormat("SET %s %ld ", key.c_str(), ui64).c_str());
+        broker.command(stringFormat("TS.ADD ts:%s %lu %ld", key.c_str(),
+                                    Sys::millis(), ui64)
+                           .c_str());
+        break;
+      }
+      case Json::value_t::number_integer: {
+        int64_t i64 = json.get<int64_t>();
+        broker.command(stringFormat("SET %s %ld ", key.c_str(), i64).c_str());
+        broker.command(stringFormat("TS.ADD ts:%s %lu %ld", key.c_str(),
+                                    Sys::millis(), i64)
+                           .c_str());
+        break;
+      }
+      case Json::value_t::number_float: {
+        double d = json.get<double>();
+        broker.command(stringFormat("SET %s %f ", key.c_str(), d).c_str());
+        broker.command(
+            stringFormat("TS.ADD ts:%s %lu %f", key.c_str(), Sys::millis(), d)
+                .c_str());
+        break;
+      }
     }
-/*    double d;
-    if (cborDeserializer.fromBytes(msg.payload).begin().get(d).success()) {
-      broker.command(stringFormat("SET %s %f ", key.c_str(), d).c_str());
-      broker.command(
-          stringFormat("TS.ADD ts:%s %lu %f", key.c_str(), Sys::millis(), d)
-              .c_str());
-    }
-    string s;*/
-  /*  if (cborDeserializer.fromBytes(msg.payload).begin().get(s).success())
-      broker.command(
-          stringFormat("SET  %s '%s'", key.c_str(), s.c_str()).c_str());*/
+    /*    double d;
+        if (cborDeserializer.fromBytes(msg.payload).begin().get(d).success()) {
+
+        }
+        string s;*/
+    /*  if (cborDeserializer.fromBytes(msg.payload).begin().get(s).success())
+        broker.command(
+            stringFormat("SET  %s '%s'", key.c_str(), s.c_str()).c_str());*/
   };
 
   workerThread.run();

@@ -5,8 +5,8 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
     : _thread(thread),_incoming(10, "incoming"), _outgoing(10, "outgoing"),
       _reconnectTimer(thread, 3000, true, "reconnectTimer")
 {
-  _hostname = cfg["host"] | "localhost";
-  _port = cfg["port"] | 6379;
+  _hostname = cfg.find("host")==cfg.end() ? "localhost" :  cfg["host"].get<String>() ;
+  _port = cfg.find("port")==cfg.end() ? 6379 :  cfg["port"].get<int>() ;
 
   _reconnectHandler.async(thread);
   _reconnectHandler >> [&](const bool &)
@@ -28,7 +28,7 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   };
   _incoming >> [&](const PubMsg &msg)
   {
-    DEBUG("Redis RXD %s %s ", msg.topic.c_str(),msg.payload.c_str());
+    DEBUG("Redis RXD %s : %s ", msg.topic.c_str(),msg.payload.c_str());
   };
   _outgoing >>
       [&](const PubMsg &msg)
@@ -44,6 +44,7 @@ BrokerRedis::~BrokerRedis(){
 
 void BrokerRedis::onMessage(redisContext *c, void *reply, void *me)
 {
+//  INFO("%s",replyToString(reply).c_str());
   BrokerRedis *pBroker = (BrokerRedis *)me;
   if (reply == NULL)
     return;

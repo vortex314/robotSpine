@@ -1,5 +1,6 @@
 
 #include "logger.h"
+
 #include <assert.h>
 #include <string.h>
 
@@ -30,28 +31,28 @@ std::string charDump(Bytes bs) {
 }
 
 #include <stdarg.h>
+
 #include <string>
 string stringFormat(const char *fmt, ...) {
-  static std::string str;
+  std::string str;
   str.clear();
-  int size = strlen(fmt) * 2 + 50; // Use a rubric appropriate for your code
-  if (size > 10240)
-    fprintf(stdout, " invalid log size\n");
+  int size = strlen(fmt) * 2 + 50;  // Use a rubric appropriate for your code
+  if (size > 10240) fprintf(stdout, " invalid log size\n");
   va_list ap;
-  while (1) { // Maximum two passes on a POSIX system...
+  while (1) {  // Maximum two passes on a POSIX system...
     assert(size < 10240);
     str.resize(size);
     va_start(ap, fmt);
-    int n = vsprintf((char *)str.data(), fmt, ap);
+    int n = vsnprintf((char *)str.data(), size, fmt, ap);
     va_end(ap);
-    if (n > -1 && n < size) { // Everything worked
+    if (n > -1 && n < size) {  // Everything worked
       str.resize(n);
       return str.c_str();
     }
-    if (n > -1)     // Needed size returned
-      size = n + 1; // For null char
+    if (n > -1)      // Needed size returned
+      size = n + 1;  // For null char
     else
-      size *= 2; // Guess at a larger size (OS specific)
+      size *= 2;  // Guess at a larger size (OS specific)
   }
   return str;
 }
@@ -78,7 +79,7 @@ std::string time_in_HH_MM_SS_MMM() {
 
   std::ostringstream oss;
 
-  oss << std::put_time(&bt, "%H:%M:%S"); // HH:MM:SS
+  oss << std::put_time(&bt, "%H:%M:%S");  // HH:MM:SS
   oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
   return oss.str();

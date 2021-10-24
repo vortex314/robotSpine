@@ -8,11 +8,10 @@
                 "${workspaceFolder}/../common/src",
                 "${workspaceFolder}/../broker/src",
                 "${workspaceFolder}/../../tinycbor/src",
-                "${workspaceFolder}/../ArduinoJson/src",
+                "${workspaceFolder}/../json/single_include",
                 "${workspaceFolder}/../../hiredis",
                 "${workspaceFolder}/../etl/include",
-                "${workspaceFolder}/src/",
-                "${workspaceFolder}/../../ArduinoJson/src"
+                "${workspaceFolder}/src/"
             ],
             "defines": [
                 "NOTHING",

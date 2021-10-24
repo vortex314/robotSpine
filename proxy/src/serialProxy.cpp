@@ -1,13 +1,13 @@
-#include <ArduinoJson.h>
 #include <config.h>
 #include <log.h>
 #include <stdio.h>
 #include <util.h>
 
+#include <nlohmann/json.hpp>
 #include <thread>
 #include <unordered_map>
 #include <utility>
-
+using Json = nlohmann::json;
 using namespace std;
 
 LogS logger;
@@ -15,6 +15,7 @@ LogS logger;
 #include <Frame.h>
 #include <SessionSerial.h>
 #include <broker_protocol.h>
+
 #include "BrokerRedisJson.h"
 const int MsgPublish::TYPE;
 
@@ -23,7 +24,6 @@ const int MsgPublish::TYPE;
 const char *CMD_TO_STRING[] = {"B_CONNECT",   "B_DISCONNECT", "B_SUBSCRIBER",
                                "B_PUBLISHER", "B_PUBLISH",    "B_RESOURCE",
                                "B_QUERY"};
-StaticJsonDocument<10240> doc;
 
 #define fatal(message)       \
   {                          \
@@ -32,7 +32,7 @@ StaticJsonDocument<10240> doc;
   }
 
 Config loadConfig(int argc, char **argv) {
-  Config cfg = doc.to<JsonObject>();
+  Config cfg;
   // defaults
   cfg["serial"]["port"] = "/dev/ttyUSB0";
   cfg["serial"]["baudrate"] = 115200;
@@ -63,9 +63,7 @@ Config loadConfig(int argc, char **argv) {
         abort();
     }
 
-  string sCfg;
-  serializeJson(doc, sCfg);
-  LOGI << sCfg << LEND;
+  LOGI << cfg.dump(2) << LEND;
   return cfg;
 };
 
@@ -173,17 +171,15 @@ int main(int argc, char **argv) {
   // filter commands from uC
   auto getAnyMsg = new SinkFunction<String>([&](const String &frame) {
     int msgType;
-    DynamicJsonDocument doc(1024);
-    DeserializationError rc = deserializeJson(doc, frame);
-    if (rc == DeserializationError::Ok && doc.is<JsonArray>()) {
-      msgType = doc.as<JsonArray>()[0];
-      String arg1 = doc.as<JsonArray>()[1].as<String>();
+    Json json = Json::parse(frame);
+    INFO("%s => %s ", frame.c_str(), json.dump().c_str());
+    if (json.type() == Json::value_t::array) {
+      int msgType = json[0].get<int>();
+      String arg1 = json[1].get<String>();
       switch (msgType) {
         case B_PUBLISH: {
-          JsonVariant payload = doc.as<JsonArray>()[1].as<JsonVariant>();
-          String arg2;
-          serializeJson(payload, arg2);
-          broker.publish(arg1, arg2);
+          Json arg2 = json[2];
+          broker.publish(arg1, arg2.dump());
           break;
         }
         case B_SUBSCRIBE: {
@@ -204,6 +200,8 @@ int main(int argc, char **argv) {
       };
     }
   });
+
+  serialSession.incoming() >> getAnyMsg;
 
   /* getPubMsg >> [&](const PubMsg &msg) {
      INFO("PUBLISH %s %s ", msg.topic, cborDump(msg.payload).c_str());
@@ -233,13 +231,9 @@ int main(int argc, char **argv) {
   */
   broker.incoming() >>
       new LambdaFlow<PubMsg, String>([&](String &msg, const PubMsg &pub) {
-        DynamicJsonDocument doc(1024), variant(1024);
-        deserializeJson(variant, pub.payload);
-        JsonArray array = doc.as<JsonArray>();
-        array.add(B_PUBLISH);
-        array.add(pub.topic);
-        array.add(variant.as<JsonVariant>());
-        serializeJson(doc, msg);
+        Json json = Json::parse(pub.payload);
+        Json v = {B_PUBLISH, pub.topic, json};
+        msg = v.dump();
         return true;
       }) >>
       serialSession.outgoing();

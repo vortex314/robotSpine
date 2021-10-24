@@ -24,6 +24,7 @@ find_library(REDIS_PLUS_PLUS_LIB redis++)
 set(HIREDIS ../hiredis )
 set(BROKER ../broker/src)
 set(TINYCBOR ../tinycbor/src )
+set(JSON ../json/single_include )
 set(ETL ../etl )
 set(COMMON ../common/src )
 set(LINUX ../linux/src )
@@ -37,7 +38,7 @@ include_directories(
   ${ETL}/include
   ${HIREDIS}
   ${BROKER}
-/home/lieven/workspace/ArduinoJson/src )
+  ${JSON} )
 
 
 target_sources(redis-brain PRIVATE

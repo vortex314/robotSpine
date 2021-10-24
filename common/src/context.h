@@ -31,10 +31,11 @@ typedef const char *Config;
 
 #include <vector>
 #include <string>
-#include <ArduinoJson.h>
+#include <nlohmann/json.hpp>
+using Json = nlohmann::json;
 using namespace std;
 
-typedef JsonObject Config;
+typedef Json Config;
 typedef std::string String;
 typedef std::string ClientId;
 typedef std::string TopicName;

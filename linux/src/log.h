@@ -3,8 +3,7 @@
 #define C6B3C6F0_EFD2_46C1_BD00_5AA4B69BDDCC
 #include <Sys.h>
 #include <context.h>
-#include <etl/string.h>
-#include <etl/string_stream.h>
+#include <sstream>
 
 #include <iomanip>
 using cstr = const char *const;
@@ -37,12 +36,11 @@ extern struct endl {
 } LEND;
 
 class LogS {
-  stringstream _ss;
+  std::stringstream _ss;
 
  public:
   typedef enum { LOG_TRACE, LOG_DEBUG, LOG_INFO, LOG_WARN, LOG_ERROR } Level;
   Level level;
-  etl::format_spec format = etl::format_spec().width(20).fill('#');
   LogS() { level = LOG_INFO; };
 
   void operator<<(struct endl x) { flush(); }
