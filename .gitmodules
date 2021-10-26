@@ -1,15 +1,6 @@
-[submodule "etl"]
-	path = etl
-	url = https://github.com/ETLCPP/etl.git
-[submodule "tinycbor"]
-	path = tinycbor
-	url = https://github.com/intel/tinycbor.git
 [submodule "hiredis"]
 	path = hiredis
 	url = https://github.com/redis/hiredis.git
-[submodule "ArduinoJson"]
-	path = ArduinoJson
-	url = https://github.com/bblanchon/ArduinoJson.git
 [submodule "json"]
 	path = json
 	url = https://github.com/nlohmann/json.git
