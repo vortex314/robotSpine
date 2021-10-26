@@ -165,14 +165,13 @@ int main(int argc, char **argv) {
   brokerProxy.connect(config["serial"]["port"]);
   // CBOR de-/serialization
 
-  serialSession.incoming() >>
-      [&](const String &s) { INFO("RXD %s", s.c_str()); };
+  /*serialSession.incoming() >>
+      [&](const String &s) { INFO("RXD %s", s.c_str()); };*/
 
   // filter commands from uC
   auto getAnyMsg = new SinkFunction<String>([&](const String &frame) {
     int msgType;
     Json json = Json::parse(frame);
-    INFO("%s => %s ", frame.c_str(), json.dump().c_str());
     if (json.type() == Json::value_t::array) {
       int msgType = json[0].get<int>();
       String arg1 = json[1].get<String>();

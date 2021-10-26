@@ -14,8 +14,8 @@ typedef int (*SubscribeCallback)(int, string);
 
 struct PubMsg
 {
-  std::string topic;
-  std::string payload;
+  String topic;
+  Json payload;
 };
 
 struct SubscriberStruct
@@ -78,7 +78,7 @@ public:
       absTopic = topic;
     SinkFunction<T> *sf = new SinkFunction<T>([&, absTopic](const T &t) {
       Json json =  t;
-      _outgoing.on({absTopic,json.dump()});
+      _outgoing.on({absTopic,json});
     });
     return *sf;
   }
@@ -91,7 +91,7 @@ public:
     auto lf = new LambdaFlow<PubMsg, T>([&, absPattern](T &t, const PubMsg &msg) {
 //      INFO(" %s vs %s ",msg.topic.c_str(),absPattern.c_str());
       if (msg.topic == absPattern /*|| match(absPattern, msg.topic)*/) {
-        Json::parse(msg.payload).get_to<T>(t);
+        t = msg.payload.get<T>();
         return true;
       }
       return false;

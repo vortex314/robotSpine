@@ -1,4 +1,3 @@
-#include <CborDump.h>
 #include <SessionSerial.h>
 #include <ppp_frame.h>
 
@@ -42,7 +41,7 @@ bool SessionSerial::init() {
   bytesToFrame.logs >> new BytesToString() >> _logs;
   _outgoingMessage >> new StringToBytes() >> frameToBytes >>
       [&](const Bytes &data) {
-        INFO("TXD %s => %s", _serialPort.port().c_str(), hexDump(data).c_str());
+//        INFO("TXD %s => %s", _serialPort.port().c_str(), hexDump(data).c_str());
         _serialPort.txd(data);
       };
   _outgoingMessage >> [&](const String &bs) { INFO("TXD %s", bs.c_str()); };

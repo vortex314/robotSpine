@@ -25,7 +25,7 @@ Config loadConfig(int argc, char **argv) {
   cfg["broker"]["host"] = "localhost";
   cfg["broker"]["port"] = 6379;
   String s = cfg.dump(2);
-  printf("%s\n",s.c_str());
+  printf("%s\n", s.c_str());
   INFO("%s", s.c_str());
 
   // override args
@@ -129,10 +129,12 @@ int main(int argc, char **argv) {
   broker.incoming() >> [&](const PubMsg &msg) {
     //    broker.command(stringFormat("SET %s \%b", key.c_str()).c_str(),
     //    bs.data(), bs.size());
-//    INFO("%s:%s",msg.topic.c_str(),msg.payload.c_str());
+    //    INFO("%s:%s",msg.topic.c_str(),msg.payload.c_str());
     vector<string> parts = split(msg.topic, '/');
+    String object = parts[2];
+    String property = parts[3];
     string key = msg.topic;
-    Json json = Json::parse(msg.payload);
+    Json json = msg.payload;
     switch (json.type()) {
       case Json::value_t::number_unsigned: {
         uint64_t ui64 = json.get<uint64_t>();
@@ -158,6 +160,14 @@ int main(int argc, char **argv) {
                 .c_str());
         break;
       }
+    }
+    if (object == "gps" && property == "location") {
+      Json location = msg.payload;
+      INFO("%s", location.dump().c_str());
+      String command = stringFormat("XADD str:pos * lon %f lat %f ",
+                                    location["lon"].get<double>(),
+                                    location["lat"].get<double>());
+      broker.command(command.c_str());
     }
     /*    double d;
         if (cborDeserializer.fromBytes(msg.payload).begin().get(d).success()) {
