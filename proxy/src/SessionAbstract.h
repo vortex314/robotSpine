@@ -10,8 +10,8 @@ class SessionAbstract : public Actor, public Invoker {
   virtual bool init() = 0;
   virtual bool connect() = 0;
   virtual bool disconnect() = 0;
-  virtual Source<String> &incoming() = 0;
-  virtual Sink<String> &outgoing() = 0;
+  virtual Source<Bytes> &incoming() = 0;
+  virtual Sink<Bytes> &outgoing() = 0;
   virtual Source<bool> &connected() = 0;
   virtual Source<String> &logs() = 0;
   virtual void onError() = 0;

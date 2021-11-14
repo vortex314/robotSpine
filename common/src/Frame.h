@@ -1,7 +1,7 @@
 #ifndef A4D87CFA_B381_4A7A_9FB2_67EDFB2285CB
 #define A4D87CFA_B381_4A7A_9FB2_67EDFB2285CB
 #include <limero.h>
-#include <ppp_frame.h>
+#include <frame.h>
 //#include <broker_protocol.h>
 //================================================================
 class BytesToFrame : public Flow<Bytes, Bytes>

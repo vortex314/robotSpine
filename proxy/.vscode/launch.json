@@ -11,7 +11,7 @@
             "name": "g++ - Build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/serialProxy",
+            "program": "${workspaceFolder}/build/serialProxyCbor",
             "args": [
                 "serial",
                 "-s",

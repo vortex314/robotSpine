@@ -1,44 +1,35 @@
 #include "CborDump.h"
-static etl::string<1024> streamBuffer;
-static etl::string_stream ss(streamBuffer);
-std::string cborDump(const Bytes &bs)
-{
-  streamBuffer.clear();
+#include <sstream>
+std::string cborDump(const Bytes &bs) {
+  std::stringstream ss;
   CborValue it;
   CborParser rootParser;
   cbor_parser_init(bs.data(), bs.size(), 0, &rootParser, &it);
   dumpCborRecursive(ss, &it, 0);
-  return std::string(streamBuffer.c_str());
+  return ss.str();
 }
 /**
  * Decode CBOR data manuallly
  */
 
-#define CBOR_CHECK(a, str, goto_tag, ret_value, ...) \
-  do                                                 \
-  {                                                  \
-    if ((a) != CborNoError)                          \
-    {                                                \
-      LOGW << "cbor error :" << str << LEND;         \
-      ret = ret_value;                               \
-      goto goto_tag;                                 \
-    }                                                \
+#define CBOR_CHECK(a, str, goto_tag, ret_value, ...)                           \
+  do {                                                                         \
+    if ((a) != CborNoError) {                                                  \
+      LOGW << "cbor error :" << str << LEND;                                   \
+      ret = ret_value;                                                         \
+      goto goto_tag;                                                           \
+    }                                                                          \
   } while (0)
 
-static void indent(etl::string_stream &ss, int nestingLevel)
-{
-  while (nestingLevel--)
-  {
+static void indent(std::stringstream &ss, int nestingLevel) {
+  while (nestingLevel--) {
     ss << (" ");
   }
 }
-CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
-                            int nestingLevel)
-{
+CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
   CborError ret = CborNoError;
   bool first = true;
-  while (!cbor_value_at_end(it))
-  {
+  while (!cbor_value_at_end(it)) {
     CborType type = cbor_value_get_type(it);
 
     indent(ss, nestingLevel);
@@ -46,10 +37,8 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
       first = false;
     else
       ss << ",";
-    switch (type)
-    {
-    case CborArrayType:
-    {
+    switch (type) {
+    case CborArrayType: {
       CborValue recursed;
       assert(cbor_value_is_container(it));
       ss << ("Array[");
@@ -63,8 +52,7 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
       ss << ("]");
       continue;
     }
-    case CborMapType:
-    {
+    case CborMapType: {
       CborValue recursed;
       assert(cbor_value_is_container(it));
       ss << ("Map{");
@@ -78,32 +66,24 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
       ss << ("}");
       continue;
     }
-    case CborIntegerType:
-    {
+    case CborIntegerType: {
       int64_t val;
-      if (cbor_value_is_unsigned_integer(it))
-      {
+      if (cbor_value_is_unsigned_integer(it)) {
         ret = cbor_value_get_int64_checked(it, &val); /* can't fail */
         CBOR_CHECK(ret, "parse int64 failed", err, ret);
         ss << (uint64_t)val;
-      }
-      else
-      {
+      } else {
         /* CBOR stores the negative number X as -1 - X
          * (that is, -1 is stored as 0, -2 as 1 and so forth) */
-        if (++val)
-        { /* unsigned overflow may happen */
+        if (++val) { /* unsigned overflow may happen */
           ss << (int64_t)val;
-        }
-        else
-        {
+        } else {
           ss << -1234567890123456LL;
         }
       }
       break;
     }
-    case CborByteStringType:
-    {
+    case CborByteStringType: {
       uint8_t *buf;
       size_t n;
       ret = cbor_value_dup_byte_string(it, &buf, &n, it);
@@ -113,8 +93,7 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
       free(buf);
       continue;
     }
-    case CborTextStringType:
-    {
+    case CborTextStringType: {
       char *buf;
       size_t n;
       ret = cbor_value_dup_text_string(it, &buf, &n, it);
@@ -123,16 +102,14 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
       free(buf);
       continue;
     }
-    case CborTagType:
-    {
+    case CborTagType: {
       CborTag tag;
       ret = cbor_value_get_tag(it, &tag);
       CBOR_CHECK(ret, "parse tag failed", err, ret);
       ss << "Tag(" << (long long)tag << ")";
       break;
     }
-    case CborSimpleType:
-    {
+    case CborSimpleType: {
       uint8_t type;
       ret = cbor_value_get_simple_type(it, &type);
       CBOR_CHECK(ret, "parse simple type failed", err, ret);
@@ -145,48 +122,49 @@ CborError dumpCborRecursive(etl::string_stream &ss, CborValue *it,
     case CborUndefinedType:
       ss << ("undefined");
       break;
-    case CborBooleanType:
-    {
+    case CborBooleanType: {
       bool val;
       ret = cbor_value_get_boolean(it, &val);
       CBOR_CHECK(ret, "parse boolean type failed", err, ret);
       ss << (val ? "true" : "false");
       break;
     }
-    case CborHalfFloatType:
-    {
+    case CborHalfFloatType: {
       uint16_t val;
       ret = cbor_value_get_half_float(it, &val);
       CBOR_CHECK(ret, "parse half float type failed", err, ret);
-      ss << "__f16(" << etl::hex << val << ")";
+      ss << "__f16(" << std::hex << val << ")";
       break;
     }
-    case CborFloatType:
-    {
+    case CborFloatType: {
       float val;
       ret = cbor_value_get_float(it, &val);
       CBOR_CHECK(ret, "parse float type failed", err, ret);
       ss << val;
       break;
     }
-    case CborDoubleType:
-    {
-      double val;
-      etl::format_spec format =  etl::format_spec().precision(6);
-      ret = cbor_value_get_double(it, &val);
+    case CborDoubleType: { 
+      double d;
+      float f;
+      if (cbor_value_is_double(it))
+        ret = cbor_value_get_double(it, &d);
+      else if (cbor_value_is_float(it)) {
+        ret = cbor_value_get_float(it, &f);
+        d=f;
+      } 
       CBOR_CHECK(ret, "parse double float type failed", err, ret);
-      ss << etl::setprecision(6) << val << ",";
+      ss << std::setprecision(6) << d << ",";
       break;
     }
-    case CborInvalidType:
-    {
+    case CborInvalidType: {
       ret = CborErrorUnknownType;
       CBOR_CHECK(ret, "unknown cbor type", err, ret);
+      ss << "#";
       break;
     }
     }
 
-    ret = cbor_value_advance_fixed(it);
+    ret = cbor_value_advance(it);
     CBOR_CHECK(ret, "fix value failed", err, ret);
   }
   return CborNoError;

@@ -68,7 +68,7 @@ set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -g -DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP 
 
 set (CMAKE_CXX_STANDARD 11)
 
-add_executable(serialProxy)
+add_executable(serialProxyCbor)
 #[[
 add_executable(redis-elastic)
 
@@ -77,11 +77,11 @@ add_executable(redis-test)
 add_executable(udp-client)
 add_executable(proxy-cli)
 ]]
-target_compile_options(serialProxy PRIVATE "-DBROKER_REDIS")
+target_compile_options(serialProxyCbor PRIVATE "-DBROKER_REDIS")
 
 
-target_sources(serialProxy PRIVATE 
-    src/serialProxy.cpp 
+target_sources(serialProxyCbor PRIVATE 
+    src/serialProxyCbor.cpp 
     src/config.cpp 
     src/SessionSerial.cpp
     src/serial.cpp 
@@ -91,7 +91,12 @@ target_sources(serialProxy PRIVATE
     ${LINUX}/limero.cpp
     ${COMMON}/ppp_frame.cpp 
     ${COMMON}/Frame.cpp
+    ${COMMON}/frame.cpp
+    ${COMMON}/Crc32.cpp
     ${COMMON}/util.cpp 
+    ${COMMON}/CborDump.cpp
+    ${COMMON}/CborWriter.cpp
+    ${COMMON}/CborReader.cpp
     ) 
 
 #[[
@@ -156,8 +161,8 @@ src/Udp.cpp
 ${COMMON}/util.cpp )
 ]]
 
-target_link_libraries(serialProxy 
--L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
+target_link_libraries(serialProxyCbor 
+-L${TINYCBOR}/lib -l:libtinycbor.a
 -lpthread  
 -lhiredis
 -lrt  

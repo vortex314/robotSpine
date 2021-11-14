@@ -23,7 +23,7 @@ bool BytesToFrame::handleFrame(const Bytes &bs)
 {
   if (bs.size() == 0)
     return false;
-  if (ppp_deframe(_cleanData, bs))
+  if (deframe(_cleanData, bs))
   {
     emit(_cleanData);
     return true;
@@ -63,6 +63,6 @@ void BytesToFrame::request(){};
 FrameToBytes::FrameToBytes()
     : LambdaFlow<Bytes, Bytes>([&](Bytes &out, const Bytes &in)
                                {
-                                 out = ppp_frame(in);
+                                 out = frame(in);
                                  return true;
                                }){};

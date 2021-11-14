@@ -2,7 +2,7 @@
 #include <ppp_frame.h>
 
 class BytesToString : public LambdaFlow<Bytes, String> {
- public:
+public:
   BytesToString()
       : LambdaFlow<Bytes, String>([&](String &out, const Bytes &in) {
           out = String((const char *)in.data(),
@@ -12,7 +12,7 @@ class BytesToString : public LambdaFlow<Bytes, String> {
 };
 
 class StringToBytes : public LambdaFlow<String, Bytes> {
- public:
+public:
   StringToBytes()
       : LambdaFlow<String, Bytes>([&](Bytes &out, const String &in) {
           out = Bytes(in.data(), in.data() + in.length());
@@ -21,30 +21,35 @@ class StringToBytes : public LambdaFlow<String, Bytes> {
 };
 
 SessionSerial::SessionSerial(Thread &thread, Config config)
-    : SessionAbstract(thread, config),
-      _incomingMessage(10, "_incomingMessage"),
-      _outgoingMessage(10, "_outgoingMessage"),
-      _incomingSerial(10, "_incomingSerial") {
+    : SessionAbstract(thread, config), _incomingFrame(10, "_incomingMessage"),
+      _outgoingFrame(10, "_outgoingMessage"),
+      _incomingSerialRaw(10, "_incomingSerial") {
   _errorInvoker = new SerialSessionError(*this);
   _port = config["port"].get<String>();
   _baudrate = config["baudrate"].get<uint32_t>();
-  _incomingSerial.async(thread);
-  _outgoingMessage.async(thread);
-  _incomingMessage.async(thread);
+  _incomingSerialRaw.async(thread);
+  _outgoingFrame.async(thread);
+  _incomingFrame.async(thread);
 }
 
 bool SessionSerial::init() {
   _serialPort.port(_port);
   _serialPort.baudrate(_baudrate);
   _serialPort.init();
-  _incomingSerial >> bytesToFrame >> new BytesToString() >> _incomingMessage;
+  _incomingSerialRaw >> bytesToFrame >> _incomingFrame;
   bytesToFrame.logs >> new BytesToString() >> _logs;
-  _outgoingMessage >> new StringToBytes() >> frameToBytes >>
-      [&](const Bytes &data) {
-//        INFO("TXD %s => %s", _serialPort.port().c_str(), hexDump(data).c_str());
-        _serialPort.txd(data);
-      };
-  _outgoingMessage >> [&](const String &bs) { INFO("TXD %s", bs.c_str()); };
+  _outgoingFrame >> frameToBytes >> [&](const Bytes &data) {
+    //        INFO("TXD %s => %s", _serialPort.port().c_str(),
+    //        hexDump(data).c_str());
+    _serialPort.txd(data);
+  };
+  bytesToFrame >>
+      [&](const Bytes &data) { 
+  //      INFO("RXD frame  %s", hexDump(data).c_str()); 
+        };
+  _incomingSerialRaw >> [&](const Bytes &data) {
+    //   INFO("RXD raw %d", data.size());
+  };
   return true;
 }
 
@@ -63,11 +68,11 @@ bool SessionSerial::disconnect() {
 // on data incoming on filedescriptor
 void SessionSerial::invoke() {
   int rc = _serialPort.rxd(_rxdBuffer);
-  if (rc == 0) {                   // read ok
-    if (_rxdBuffer.size() == 0) {  // but no data
+  if (rc == 0) {                  // read ok
+    if (_rxdBuffer.size() == 0) { // but no data
       WARN(" 0 data ");
     } else {
-      _incomingSerial.on(_rxdBuffer);
+      _incomingSerialRaw.on(_rxdBuffer);
     }
   }
 }
@@ -79,9 +84,9 @@ void SessionSerial::onError() {
 
 int SessionSerial::fd() { return _serialPort.fd(); }
 
-Source<String> &SessionSerial::incoming() { return _incomingMessage; }
+Source<Bytes> &SessionSerial::incoming() { return _incomingFrame; }
 
-Sink<String> &SessionSerial::outgoing() { return _outgoingMessage; }
+Sink<Bytes> &SessionSerial::outgoing() { return _outgoingFrame; }
 
 Source<bool> &SessionSerial::connected() { return _connected; }
 

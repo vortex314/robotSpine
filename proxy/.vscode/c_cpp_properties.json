@@ -9,12 +9,10 @@
                 "${workspaceFolder}/../broker/src",
                 "${workspaceFolder}/../linux/src",
                 "${workspaceFolder}/../../limero/inc/",
-                "${workspaceFolder}/../../zenoh-c/include/",
-                "${workspaceFolder}/../../tinycbor/src",
+                "${workspaceFolder}/../json/single_include",
                 "${workspaceFolder}/../hiredis",
-                "${workspaceFolder}/../etl/include",
-                "${workspaceFolder}/src/",
-                "${workspaceFolder}/../ArduinoJson/src"
+                "${workspaceFolder}/../tinycbor/src",
+                "${workspaceFolder}/src/"
             ],
             "defines": [
                 "NOTHING",

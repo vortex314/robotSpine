@@ -1,13 +1,15 @@
+#include <CborDump.h>
+#include <CborReader.h>
+#include <CborWriter.h>
+#include <cbor.h>
 #include <config.h>
 #include <log.h>
-#include <nlohmann/json.hpp>
 #include <stdio.h>
 #include <thread>
 #include <unordered_map>
 #include <util.h>
 #include <utility>
 
-using Json = nlohmann::json;
 using namespace std;
 
 LogS logger;
@@ -67,75 +69,6 @@ Config loadConfig(int argc, char **argv) {
   return cfg;
 };
 
-bool writeBytesToFile(string fileName, const Bytes &data) {
-  ofstream wf(fileName, ios::out | ios::binary);
-  if (!wf) {
-    WARN("Cannot open file : '%s' !", fileName.c_str());
-    return false;
-  }
-  wf.write((char *)data.data(), data.size());
-  if (!wf.good()) {
-    WARN("Error occurred at writing time!: '%s' !", fileName.c_str());
-    wf.close();
-    return false;
-  }
-  wf.close();
-  return wf.good();
-}
-
-bool flashFileToDevice(Sink<Bytes> &logStream, string fileName, string port,
-                       uint32_t baudrate) {
-  string cmd = "ls -l  ";
-  char buffer[128];
-  FILE *pipe = popen(cmd.c_str(), "r");
-  if (!pipe) {
-    WARN("popen() failed :  %s  ", strerror(errno));
-    return false;
-  }
-  try {
-    while (fgets(buffer, sizeof buffer, pipe) != NULL) {
-      INFO("LOG ===> %s ", buffer);
-      Bytes bs((uint8_t)*buffer, (uint8_t)*buffer + strlen(buffer));
-      logStream.on(bs);
-    }
-  } catch (...) {
-    pclose(pipe);
-    return false;
-  }
-  pclose(pipe);
-  return true;
-}
-
-bool flashFileToDevice2(string fileName, string port, uint32_t baudrate) {
-  INFO("  esptool.py --port %s write_flash 0x0000 %s --baud %u ", port.c_str(),
-       fileName.c_str(), baudrate);
-  string python = "/home/lieven/.platformio/penv/bin/python";
-  string esptool =
-      "/home/lieven/.platformio/packages/tool-esptoolpy/esptool.py";
-  string bootloader =
-      "/home/lieven/.platformio/packages/framework-arduinoespressif32/tools/"
-      "sdk/bin/bootloader_dio_40m.bin";
-  string partitions =
-      "/home/lieven/workspace/broker-proxy/arduino_client/.pio/build/"
-      "nodemcu-32s/partitions.bin";
-  string boot_app0 =
-      "/home/lieven/.platformio/packages/framework-arduinoespressif32/tools/"
-      "partitions/boot_app0.bin";
-  string firmware = ".pio/build/nodemcu-32s/firmware.bin";
-  string command =
-      stringFormat("%s %s --chip esp32 --port %s --baud %u "
-                   " --before default_reset --after hard_reset write_flash -z "
-                   " --flash_mode dio --flash_freq 40m --flash_size detect "
-                   " 0x1000 %s "
-                   " 0x8000 %s "
-                   " 0xe000 %s "
-                   " 0x10000 %s",
-                   python, esptool, port, baudrate, bootloader, partitions,
-                   boot_app0, firmware);
-
-  return true;
-}
-
 //================================================================
 
 //==========================================================================
@@ -168,35 +101,51 @@ int main(int argc, char **argv) {
   /*serialSession.incoming() >>
       [&](const String &s) { INFO("RXD %s", s.c_str()); };*/
 
-  // filter commands from uC
-  auto getAnyMsg = new SinkFunction<String>([&](const String &frame) {
+  auto getAnyMsg = new SinkFunction<Bytes>([&](const Bytes &frame) {
+    CborReader cborReader(1000);
     int msgType;
-    Json json = Json::parse(frame);
-    if (json.type() == Json::value_t::array) {
-      int msgType = json[0].get<int>();
-      String arg1 = json[1].get<String>();
-      switch (msgType) {
-      case B_PUBLISH: {
-        Json arg2 = json[2];
-        broker.publish(arg1, arg2.dump());
-        break;
+    cborReader.fill(frame);
+    if (cborReader.checkCrc()) {
+//      INFO("RXD hex : %s", hexDump(frame).c_str());
+      std::string s; 
+      cborReader.parse().toJson(s);
+      INFO("RXD cbor: %s", s.c_str());
+      if (cborReader.parse().array().get(msgType).ok()) {
+        switch (msgType) {
+        case B_PUBLISH: {
+          std::string topic;
+          if (cborReader.get(topic).ok()) {
+            String s;
+            cborReader.toJson(s);
+            broker.publish(topic, s);
+          }
+          break;
+        }
+        case B_SUBSCRIBE: {
+          std::string topic;
+          if (cborReader.get(topic).ok())
+            broker.subscribe(topic);
+          break;
+        }
+        case B_NODE: {
+          std::string nodeName;
+          if (cborReader.get(nodeName).ok()) {
+            String topic = "dst/";
+            topic += nodeName;
+            topic += "/*";
+            broker.subscribe(topic);
+            topic = "dst/";
+            topic += nodeName;
+            topic += "-proxy/*";
+            brokerProxy.subscribe(topic);
+          }
+          break;
+        }
+        }
       }
-      case B_SUBSCRIBE: {
-        broker.subscribe(arg1);
-        break;
-      }
-      case B_NODE: {
-        String topic = "dst/";
-        topic += arg1;
-        topic += "/*";
-        broker.subscribe(topic);
-        topic = "dst/";
-        topic += arg1;
-        topic += "-proxy/*";
-        brokerProxy.subscribe(topic);
-        break;
-      }
-      };
+      cborReader.close();
+    } else {
+      serialSession.logs().emit(std::string(frame.begin(), frame.end()));
     }
   });
 
@@ -230,11 +179,13 @@ int main(int argc, char **argv) {
   */
   broker.incoming() >>
       new LambdaFlow<PubMsg, String>([&](String &msg, const PubMsg &pub) {
-        Json json = pub.payload;
-        Json v = {B_PUBLISH, pub.topic, json};
-        msg = v.dump();
-        return true;
+        /* Json json = pub.payload;
+         Json v = {B_PUBLISH, pub.topic, json};
+         msg = v.dump();*/
+        return false;
       }) >>
+      new LambdaFlow<String, Bytes>(
+          [&](Bytes &msg, const String &bs) { return false; }) >>
       serialSession.outgoing();
 
   workerThread.run();

@@ -22,13 +22,14 @@ class SessionSerial : public SessionAbstract {
   uint64_t _frameTimeout = 2000;
   BytesToFrame bytesToFrame;
   FrameToBytes frameToBytes;
-  QueueFlow<Bytes> _incomingSerial;
-  QueueFlow<String> _incomingMessage;
-  QueueFlow<String> _outgoingMessage;
+  QueueFlow<Bytes> _incomingSerialRaw;
+  QueueFlow<Bytes> _incomingFrame;
+  // QueueFlow<String> _incomingMessage;
+  QueueFlow<Bytes> _outgoingFrame;
   ValueFlow<bool> _connected;
   ValueFlow<String> _logs;
 
- public:
+public:
   //  ValueSource<TcpCommand> command;
   SessionSerial(Thread &thread, Config config);
   bool init();
@@ -37,8 +38,8 @@ class SessionSerial : public SessionAbstract {
   void onError();
   int fd();
   void invoke();
-  Source<String> &incoming();
-  Sink<String> &outgoing();
+  Source<Bytes> &incoming();
+  Sink<Bytes> &outgoing();
   Source<bool> &connected();
   Source<String> &logs();
   string port();
@@ -47,7 +48,7 @@ class SessionSerial : public SessionAbstract {
 class SerialSessionError : public Invoker {
   SessionSerial &_serialSession;
 
- public:
+public:
   SerialSessionError(SessionSerial &serialSession)
       : _serialSession(serialSession){};
   void invoke() { _serialSession.onError(); }
