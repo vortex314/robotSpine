@@ -1,3 +1,4 @@
+#include <CborDump.h>
 #include <SessionSerial.h>
 #include <ppp_frame.h>
 
@@ -43,10 +44,12 @@ bool SessionSerial::init() {
     //        hexDump(data).c_str());
     _serialPort.txd(data);
   };
-  bytesToFrame >>
-      [&](const Bytes &data) { 
-  //      INFO("RXD frame  %s", hexDump(data).c_str()); 
-        };
+  _outgoingFrame >>
+      [&](const Bytes &bs) { INFO("TXD %s ", cborDump(bs).c_str()); };
+
+  bytesToFrame >> [&](const Bytes &data) {
+    //      INFO("RXD frame  %s", hexDump(data).c_str());
+  };
   _incomingSerialRaw >> [&](const Bytes &data) {
     //   INFO("RXD raw %d", data.size());
   };

@@ -26,6 +26,21 @@ const char *CMD_TO_STRING[] = {"B_CONNECT",   "B_DISCONNECT", "B_SUBSCRIBER",
                                "B_PUBLISHER", "B_PUBLISH",    "B_RESOURCE",
                                "B_QUERY"};
 
+CborWriter &cborAddJson(CborWriter &writer, Json v) {
+  if (v.is_number_integer()) {
+    writer.add((int)v);
+  } else if (v.is_string()) {
+    writer.add((std::string)v);
+  } else if (v.is_number_float()) {
+    writer.add((double)v);
+  } else if (v.is_boolean()) {
+    writer.add((bool)v);
+  } else {
+    writer.add("====================");
+  }
+  return writer;
+}
+
 #define fatal(message)                                                         \
   {                                                                            \
     LOGW << message << LEND;                                                   \
@@ -106,8 +121,8 @@ int main(int argc, char **argv) {
     int msgType;
     cborReader.fill(frame);
     if (cborReader.checkCrc()) {
-//      INFO("RXD hex : %s", hexDump(frame).c_str());
-      std::string s; 
+      //      INFO("RXD hex : %s", hexDump(frame).c_str());
+      std::string s;
       cborReader.parse().toJson(s);
       INFO("RXD cbor: %s", s.c_str());
       if (cborReader.parse().array().get(msgType).ok()) {
@@ -151,10 +166,6 @@ int main(int argc, char **argv) {
 
   serialSession.incoming() >> getAnyMsg;
 
-  /* getPubMsg >> [&](const PubMsg &msg) {
-     INFO("PUBLISH %s %s ", msg.topic, cborDump(msg.payload).c_str());
-   };*/
-
   SinkFunction<String> redisLogStream([&](const String &bs) {
     static String buffer;
     for (uint8_t b : bs) {
@@ -178,14 +189,14 @@ int main(int argc, char **argv) {
       ::write(1, ColorDefault, strlen(ColorDefault));
   */
   broker.incoming() >>
-      new LambdaFlow<PubMsg, String>([&](String &msg, const PubMsg &pub) {
-        /* Json json = pub.payload;
-         Json v = {B_PUBLISH, pub.topic, json};
-         msg = v.dump();*/
-        return false;
+      new LambdaFlow<PubMsg, Bytes>([&](Bytes &msg, const PubMsg &pub) {
+        CborWriter writer(100);
+        writer.reset().array().add(B_PUBLISH).add(pub.topic);
+        cborAddJson(writer, pub.payload);
+        writer.close();
+        msg = writer.bytes();
+        return true;
       }) >>
-      new LambdaFlow<String, Bytes>(
-          [&](Bytes &msg, const String &bs) { return false; }) >>
       serialSession.outgoing();
 
   workerThread.run();
