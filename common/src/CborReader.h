@@ -35,6 +35,7 @@ public:
 	CborReader& get(int &v) ;
 	CborReader& get(std::string &s) ;
 	CborReader& toJson(std::string& );
+	Bytes toBytes();
 	bool checkCrc();
 	bool ok() ;
 };

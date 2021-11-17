@@ -142,6 +142,12 @@ bool CborReader::checkCrc() {
     return false;
   }
 }
+
+
+Bytes CborReader::toBytes(){
+  return Bytes(_data,_data+_size);
+}
+
 #include <cborjson.h>
 #include <stdarg.h>
 
@@ -178,5 +184,6 @@ CborReader &CborReader::toJson(std::string &json) {
 //  INFO("JSON : %s ", json.c_str());
   return *this;
 }
+
 
 bool CborReader::ok() { return _error == CborNoError; }

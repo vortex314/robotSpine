@@ -69,6 +69,7 @@ set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -g -DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP 
 set (CMAKE_CXX_STANDARD 11)
 
 add_executable(serialProxyCbor)
+add_executable(cborTest)
 #[[
 add_executable(redis-elastic)
 
@@ -99,6 +100,10 @@ target_sources(serialProxyCbor PRIVATE
     ${COMMON}/CborReader.cpp
     ) 
 
+
+  target_sources(cborTest PRIVATE 
+    src/cborTest.cpp)
+
 #[[
   target_sources(test PRIVATE 
       ${LINUX}/limero.cpp
@@ -128,7 +133,7 @@ target_sources(proxy-cli PRIVATE
   ${COMMON}/Frame.cpp
   ${COMMON}/util.cpp ) 
 
-  target_sources(redis-test PRIVATE 
+  target_sources(redis-test PRIVATE serialProxyCbor
   ${LINUX}/limero.cpp
   src/redis-test.cpp 
   ${LINUX}/logger.cpp
@@ -162,6 +167,14 @@ ${COMMON}/util.cpp )
 ]]
 
 target_link_libraries(serialProxyCbor 
+-L${TINYCBOR}/lib -l:libtinycbor.a
+-lpthread  
+-lhiredis
+-lrt  
+-latomic)
+
+
+target_link_libraries(cborTest 
 -L${TINYCBOR}/lib -l:libtinycbor.a
 -lpthread  
 -lhiredis

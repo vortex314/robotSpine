@@ -32,7 +32,7 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
   while (!cbor_value_at_end(it)) {
     CborType type = cbor_value_get_type(it);
 
-    indent(ss, nestingLevel);
+ //   indent(ss, nestingLevel);
     if (first)
       first = false;
     else
@@ -100,6 +100,7 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
       CBOR_CHECK(ret, "parse text string failed", err, ret);
       ss << "'" << (const char *)buf << "'";
       free(buf);
+      //    ret = cbor_value_advance(it);
       continue;
     }
     case CborTagType: {
@@ -143,15 +144,15 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
       ss << val;
       break;
     }
-    case CborDoubleType: { 
+    case CborDoubleType: {
       double d;
       float f;
       if (cbor_value_is_double(it))
         ret = cbor_value_get_double(it, &d);
       else if (cbor_value_is_float(it)) {
         ret = cbor_value_get_float(it, &f);
-        d=f;
-      } 
+        d = f;
+      }
       CBOR_CHECK(ret, "parse double float type failed", err, ret);
       ss << std::setprecision(6) << d << ",";
       break;
@@ -161,6 +162,9 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
       CBOR_CHECK(ret, "unknown cbor type", err, ret);
       ss << "#";
       break;
+    }
+    default: {
+      WARN(" invalid cbor type ");
     }
     }
 

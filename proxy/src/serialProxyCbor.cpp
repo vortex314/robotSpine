@@ -121,10 +121,12 @@ int main(int argc, char **argv) {
     int msgType;
     cborReader.fill(frame);
     if (cborReader.checkCrc()) {
-      //      INFO("RXD hex : %s", hexDump(frame).c_str());
+//      INFO("RXD hex[%d] : %s", frame.size(), hexDump(frame).c_str());
       std::string s;
       cborReader.parse().toJson(s);
-      INFO("RXD cbor: %s", s.c_str());
+      Bytes bs = cborReader.toBytes();
+  //    INFO("RXD cbor[%d]: %s", bs.size(), hexDump(bs).c_str());
+      INFO("RXD cbor[%d]: %s", bs.size(), s.c_str());
       if (cborReader.parse().array().get(msgType).ok()) {
         switch (msgType) {
         case B_PUBLISH: {
@@ -194,6 +196,7 @@ int main(int argc, char **argv) {
         writer.reset().array().add(B_PUBLISH).add(pub.topic);
         cborAddJson(writer, pub.payload);
         writer.close();
+        writer.addCrc();
         msg = writer.bytes();
         return true;
       }) >>
