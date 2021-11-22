@@ -47,6 +47,8 @@ int Udp::receive(UdpMsg &rxd) {
     rxd.message.clear();
     rxd.src.ip = clientaddr.sin_addr.s_addr;
     rxd.src.port = ntohs(clientaddr.sin_port);
+    rxd.dst.ip = INADDR_ANY;
+    rxd.dst.port = _myPort;
     char strIp[100];
     inet_ntop(AF_INET, &(rxd.src.ip), strIp, INET_ADDRSTRLEN);
  //   INFO(" received from %s:%d ", strIp, rxd.src.port);

@@ -41,6 +41,12 @@ struct UdpAddress {
     return other.ip == ip && other.port == port;
   }
   static bool fromUri(UdpAddress &, std::string);
+ /* bool operator()(const UdpAddress &lhs, const UdpAddress &rhs) const {
+    return false;
+  }*/
+    bool operator<(const UdpAddress &other) const {
+    return port < other.port ;
+  }
   std::string toString() const;
 };
 
