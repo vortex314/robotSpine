@@ -40,20 +40,20 @@ bool SessionSerial::init() {
   _incomingSerialRaw >> bytesToFrame >> _incomingFrame;
   bytesToFrame.logs >> new BytesToString() >> _logs;
   _outgoingFrame >> frameToBytes >> [&](const Bytes &data) {
-    INFO("TXD  %s => [%d] %s", _serialPort.port().c_str(),data.size(), hexDump(data).c_str());
+ //   INFO("TXD  %s => [%d] %s", _serialPort.port().c_str(),data.size(), hexDump(data).c_str());
     _serialPort.txd(data);
   };
   _outgoingFrame >> [&](const Bytes &bs) {
-    INFO("TXD [%d] %s ",bs.size(), hexDump(bs).c_str());
+ //   INFO("TXD [%d] %s ",bs.size(), hexDump(bs).c_str());
     INFO("TXD %s ", cborDump(bs).c_str());
   };
 
   bytesToFrame >> [&](const Bytes &data) {
     //      INFO("RXD frame  %s", hexDump(data).c_str());
   };
-  _incomingSerialRaw >> [&](const Bytes &data) {
-    //   INFO("RXD raw %d", data.size());
-  };
+  /*_incomingSerialRaw >> [&](const Bytes &data) {
+       INFO("RXD raw %s", hexDump(data).c_str());
+  };*/
   return true;
 }
 

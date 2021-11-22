@@ -241,7 +241,7 @@ int BrokerRedis::disconnect()
 
 int BrokerRedis::subscribe(string pattern)
 {
-  INFO(" REDIS psubscribe %s", pattern.c_str());
+//  INFO(" REDIS psubscribe %s", pattern.c_str());
   _subscriptions.insert(pattern);
   string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
   redisReply *r = (redisReply *)redisCommand(_subscribeContext, cmd.c_str());

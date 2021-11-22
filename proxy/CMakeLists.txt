@@ -35,10 +35,8 @@ find_path(REDIS_PLUS_PLUS_HEADER sw)
 find_library(REDIS_PLUS_PLUS_LIB redis++)
 # target_link_libraries(target ${REDIS_PLUS_PLUS_LIB})
 
-add_definitions(-DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP -DZENOH_DEBUG=1 -DLINUX -std=c++11)
-# set (ZENOH_TRANSPORT_UDP "ON")
+add_definitions(-DLINUX -std=c++11)
 
-# set(ZENOHC /home/lieven/workspace/zenoh-c)
 set(HIREDIS ../hiredis )
 # set(LIMERO /home/lieven/workspace/limero )
 set(BROKER ../broker/src)
@@ -62,8 +60,8 @@ include_directories(
 /home/lieven/workspace/ArduinoJson/src )
 
 add_definitions(-DCATCH_CONFIG_DISABLE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP -DZENOH_DEBUG=1")
-set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -g -DZENOH_LINUX -DZENOH_TRANSPORT_UDP_IP -DZENOH_DEBUG=1")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -g ")
 # set(CMAKE_BUILD_TYPE Debug)
 
 set (CMAKE_CXX_STANDARD 11)

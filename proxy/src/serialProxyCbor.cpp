@@ -114,14 +114,14 @@ int main(int argc, char **argv) {
   // CBOR de-/serialization
 
   /*serialSession.incoming() >>
-      [&](const String &s) { INFO("RXD %s", s.c_str()); };*/
+      [&](const Bytes &s) { INFO("RXD %s", hexDump(s).c_str()); };*/
 
   auto getAnyMsg = new SinkFunction<Bytes>([&](const Bytes &frame) {
     CborReader cborReader(1000);
     int msgType;
     cborReader.fill(frame);
     if (cborReader.checkCrc()) {
-//      INFO("RXD hex[%d] : %s", frame.size(), hexDump(frame).c_str());
+ //     INFO("RXD good Crc hex[%d] : %s", frame.size(), hexDump(frame).c_str());
       std::string s;
       cborReader.parse().toJson(s);
       Bytes bs = cborReader.toBytes();
@@ -135,6 +135,8 @@ int main(int argc, char **argv) {
             String s;
             cborReader.toJson(s);
             broker.publish(topic, s);
+          } else {
+            INFO(" invalid CBOR publish");
           }
           break;
         }
@@ -162,6 +164,7 @@ int main(int argc, char **argv) {
       }
       cborReader.close();
     } else {
+      if ( frame.back() != '\n') INFO(" invalid CRC [%d] %s",frame.size(),hexDump(frame).c_str());
       serialSession.logs().emit(std::string(frame.begin(), frame.end()));
     }
   });
