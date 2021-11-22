@@ -11,13 +11,10 @@
             "name": "g++ - Build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/serialProxyCbor",
+            "program": "${workspaceFolder}/build/udpProxy",
             "args": [
-                "serial",
-                "-s",
-                "/dev/ttyUSB0",
-                "-b",
-                "921600"
+                "-u",
+                "9999"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -1,5 +1,5 @@
-#ifndef _SESSION_SERAIL_H_
-#define _SESSION_SERIAL_H_
+#ifndef _SESSION_UDP_H_
+#define _SESSION_UDP_H_
 #include <SessionAbstract.h>
 #include <Udp.h>
 #include <limero.h>
@@ -17,7 +17,10 @@ class SessionUdp : public SessionAbstract {
   uint64_t _frameTimeout = 2000;
   QueueFlow<Bytes> _incomingMessage;
   QueueFlow<Bytes> _outgoingMessage;
-  ValueFlow<Bytes> _logs;
+  ValueFlow<String> _logs;
+
+  QueueFlow<UdpMsg> _recv;
+  QueueFlow<UdpMsg> _send;
 
   ValueFlow<bool> _connected;
   UdpMsg _udpMsg;
@@ -34,7 +37,9 @@ class SessionUdp : public SessionAbstract {
   Source<Bytes> &incoming();
   Sink<Bytes> &outgoing();
   Source<bool> &connected();
-  Source<Bytes>& logs() ;
+  Source<String> &logs();
+  Source<UdpMsg> &recv();
+  Sink<UdpMsg> &send();
 };
 
 class UdpSessionError : public Invoker {

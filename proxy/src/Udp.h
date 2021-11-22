@@ -7,16 +7,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <string>
+
 #define PORT 8080
 #define MAXLINE 1500
 
-template <typename T> struct Try {
-public:
+template <typename T>
+struct Try {
+ public:
   int rc;
   T t;
   static Try Success(T t) {
@@ -38,11 +40,12 @@ struct UdpAddress {
   bool operator==(UdpAddress &other) {
     return other.ip == ip && other.port == port;
   }
-  static bool fromUri(UdpAddress& ,std::string);
+  static bool fromUri(UdpAddress &, std::string);
+  std::string toString() const;
 };
 
 struct UdpMsg {
-public:
+ public:
   UdpAddress src;
   UdpAddress dst;
   Bytes message;
@@ -55,7 +58,7 @@ class Udp {
   int _sockfd;
   char buffer[MAXLINE];
 
-public:
+ public:
   void dst(const char *);
   void port(uint16_t port) { _myPort = port; }
   int init();

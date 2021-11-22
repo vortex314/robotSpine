@@ -6,7 +6,7 @@
 int Udp::init() {
   struct sockaddr_in servaddr;
   if ((_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    perror("socket creation failed");
+    WARN("socket creation failed %d : %s", errno, strerror(errno));
     return (errno);
   }
 
@@ -14,20 +14,20 @@ int Udp::init() {
   setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval,
              sizeof(int));
   memset(&servaddr, 0, sizeof(servaddr));
-  servaddr.sin_family = AF_INET; // IPv4
+  servaddr.sin_family = AF_INET;  // IPv4
   servaddr.sin_addr.s_addr = INADDR_ANY;
   servaddr.sin_port = htons(_myPort);
   if (bind(_sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
-    perror("bind failed");
+    WARN("bind failed %d : %s", errno, strerror(errno));
     return (errno);
   }
+  INFO("UDP listening port:%d socket:%d", _myPort, _sockfd);
   return 0;
 }
 
 int Udp::deInit() {
   int rc = close(_sockfd);
-  if (rc)
-    perror("close failed");
+  if (rc) perror("close failed");
   return rc;
 }
 
@@ -35,7 +35,7 @@ int Udp::receive(UdpMsg &rxd) {
   struct sockaddr_in clientaddr;
   memset(&clientaddr, 0, sizeof(clientaddr));
 
-  socklen_t len = sizeof(clientaddr); // len is value/resuslt
+  socklen_t len = sizeof(clientaddr);  // len is value/resuslt
   clientaddr.sin_family = AF_INET;
   clientaddr.sin_port = htons(_myPort);
   clientaddr.sin_addr.s_addr = INADDR_ANY;
@@ -49,8 +49,7 @@ int Udp::receive(UdpMsg &rxd) {
     rxd.src.port = ntohs(clientaddr.sin_port);
     char strIp[100];
     inet_ntop(AF_INET, &(rxd.src.ip), strIp, INET_ADDRSTRLEN);
-
-    INFO(" received from %s:%d \n", strIp, rxd.src.port);
+ //   INFO(" received from %s:%d ", strIp, rxd.src.port);
     rxd.message = Bytes(buffer, buffer + rc);
     return 0;
   } else {
@@ -69,8 +68,7 @@ int Udp::send(UdpMsg &udpMsg) {
 
   int rc = sendto(_sockfd, udpMsg.message.data(), udpMsg.message.size(), 0,
                   (const struct sockaddr *)&server, sizeof(server));
-  if (rc < 0)
-    return errno;
+  if (rc < 0) return errno;
   return 0;
 }
 
@@ -87,24 +85,24 @@ int main(int argc,char* argv[]) {
 }
 */
 #include <arpa/inet.h>
-#include <errno.h>  //For errno - the error number
-#include <netdb.h>  //hostent
-#include <stdio.h>  //printf
-#include <stdlib.h> //for exit(0);
-#include <string.h> //memset
+#include <errno.h>   //For errno - the error number
+#include <netdb.h>   //hostent
+#include <stdio.h>   //printf
+#include <stdlib.h>  //for exit(0);
+#include <string.h>  //memset
 #include <sys/socket.h>
 bool getInetAddr(in_addr_t &addr, std::string &hostname) {
   addr = (in_addr_t)(-1);
-  if (isdigit(hostname[0])) { // IP dot notation
+  if (isdigit(hostname[0])) {  // IP dot notation
     addr = inet_addr(hostname.c_str());
-  } else { // host name
+  } else {  // host name
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_in *h;
     int rv;
 
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // use AF_INET6 to force IPv6
+    hints.ai_family = AF_UNSPEC;  // use AF_INET6 to force IPv6
     hints.ai_socktype = SOCK_STREAM;
 
     if ((rv = getaddrinfo(hostname.c_str(), "http", &hints, &servinfo)) != 0) {
@@ -119,11 +117,10 @@ bool getInetAddr(in_addr_t &addr, std::string &hostname) {
         addr = ((sockaddr_in *)sa)->sin_addr.s_addr;
       }
     }
-    freeaddrinfo(servinfo); // all done with this structure
+    freeaddrinfo(servinfo);  // all done with this structure
   }
   return addr != (in_addr_t)(-1);
 }
-
 
 bool getNumber(uint16_t &x, const string &s) {
   x = 0;
@@ -143,4 +140,13 @@ bool UdpAddress::fromUri(UdpAddress &udpAddress, std::string uri) {
 
   return parts.size() == 2 && getInetAddr(udpAddress.ip, parts[0]) &&
          getNumber(udpAddress.port, parts[1]);
+}
+
+std::string UdpAddress::toString() const{
+  char charBuffer[100];
+  const char* ipString = inet_ntop(AF_INET,&ip,charBuffer,sizeof(charBuffer));
+  std::string url = ipString==0 ? "UNKNOWN":ipString;
+  url+=":";
+  url+=std::to_string(port);
+  return url;
 }

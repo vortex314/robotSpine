@@ -4,9 +4,11 @@
 SessionUdp::SessionUdp(Thread &thread, Config config)
     : SessionAbstract(thread, config),
       _incomingMessage(10, "_incomingMessage"),
-      _outgoingMessage(10, "_outgoingMessage") {
+      _outgoingMessage(10, "_outgoingMessage"),
+      _send(10, "send"),
+      _recv(10, "recv") {
   _errorInvoker = new UdpSessionError(*this);
-  _port = config["port"].as<int>();
+  _port = config["port"].get<uint32_t>();
 }
 
 bool SessionUdp::init() {
@@ -18,7 +20,7 @@ bool SessionUdp::init() {
 
 bool SessionUdp::connect() {
   thread().addReadInvoker(_udp.fd(), [&](int) { invoke(); });
-  thread().addErrorInvoker(_udp.fd(), [&](int) { invoke(); });
+  thread().addErrorInvoker(_udp.fd(), [&](int) { onError(); });
   return true;
 }
 
@@ -31,10 +33,12 @@ bool SessionUdp::disconnect() {
 void SessionUdp::invoke() {
   int rc = _udp.receive(_udpMsg);
   if (rc == 0) {  // read ok
-    _incomingMessage.on(_udpMsg.message);
+    INFO("UDP RXD %s => %s ", _udpMsg.src.toString().c_str(),
+         hexDump(_udpMsg.message).c_str());
+    _recv.on(_udpMsg);
   }
 }
-// on error issue onf ile descriptor
+// on error issue on file descriptor
 void SessionUdp::onError() {
   LOGW << " Error occured on SessionUdp. Disconnecting.. " << LEND;
   disconnect();
@@ -42,9 +46,11 @@ void SessionUdp::onError() {
 
 int SessionUdp::fd() { return _udp.fd(); }
 
-Source<std::string> &SessionUdp::incoming() { return _incomingMessage; }
+Source<Bytes> &SessionUdp::incoming() { return _incomingMessage; }
+Source<UdpMsg> &SessionUdp::recv() { return _recv; }
 
-Sink<std::string> &SessionUdp::outgoing() { return _outgoingMessage; }
+Sink<Bytes> &SessionUdp::outgoing() { return _outgoingMessage; }
+Sink<UdpMsg> &SessionUdp::send() { return _send; }
 
 Source<bool> &SessionUdp::connected() { return _connected; }
-Source<std::string> &SessionUdp::logs() { return _logs; }
+Source<String> &SessionUdp::logs() { return _logs; }

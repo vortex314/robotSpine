@@ -1,13 +1,15 @@
+#include <CborDump.h>
+#include <CborReader.h>
+#include <CborWriter.h>
+#include <cbor.h>
 #include <config.h>
 #include <log.h>
-#include <nlohmann/json.hpp>
 #include <stdio.h>
 #include <thread>
 #include <unordered_map>
 #include <util.h>
 #include <utility>
 
-using Json = nlohmann::json;
 using namespace std;
 
 LogS logger;
@@ -23,6 +25,21 @@ const int MsgPublish::TYPE;
 const char *CMD_TO_STRING[] = {"B_CONNECT",   "B_DISCONNECT", "B_SUBSCRIBER",
                                "B_PUBLISHER", "B_PUBLISH",    "B_RESOURCE",
                                "B_QUERY"};
+
+CborWriter &cborAddJson(CborWriter &writer, Json v) {
+  if (v.is_number_integer()) {
+    writer.add((int)v);
+  } else if (v.is_string()) {
+    writer.add((std::string)v);
+  } else if (v.is_number_float()) {
+    writer.add((double)v);
+  } else if (v.is_boolean()) {
+    writer.add((bool)v);
+  } else {
+    writer.add("====================");
+  }
+  return writer;
+}
 
 #define fatal(message)                                                         \
   {                                                                            \
@@ -67,75 +84,6 @@ Config loadConfig(int argc, char **argv) {
   return cfg;
 };
 
-bool writeBytesToFile(string fileName, const Bytes &data) {
-  ofstream wf(fileName, ios::out | ios::binary);
-  if (!wf) {
-    WARN("Cannot open file : '%s' !", fileName.c_str());
-    return false;
-  }
-  wf.write((char *)data.data(), data.size());
-  if (!wf.good()) {
-    WARN("Error occurred at writing time!: '%s' !", fileName.c_str());
-    wf.close();
-    return false;
-  }
-  wf.close();
-  return wf.good();
-}
-
-bool flashFileToDevice(Sink<Bytes> &logStream, string fileName, string port,
-                       uint32_t baudrate) {
-  string cmd = "ls -l  ";
-  char buffer[128];
-  FILE *pipe = popen(cmd.c_str(), "r");
-  if (!pipe) {
-    WARN("popen() failed :  %s  ", strerror(errno));
-    return false;
-  }
-  try {
-    while (fgets(buffer, sizeof buffer, pipe) != NULL) {
-      INFO("LOG ===> %s ", buffer);
-      Bytes bs((uint8_t)*buffer, (uint8_t)*buffer + strlen(buffer));
-      logStream.on(bs);
-    }
-  } catch (...) {
-    pclose(pipe);
-    return false;
-  }
-  pclose(pipe);
-  return true;
-}
-
-bool flashFileToDevice2(string fileName, string port, uint32_t baudrate) {
-  INFO("  esptool.py --port %s write_flash 0x0000 %s --baud %u ", port.c_str(),
-       fileName.c_str(), baudrate);
-  string python = "/home/lieven/.platformio/penv/bin/python";
-  string esptool =
-      "/home/lieven/.platformio/packages/tool-esptoolpy/esptool.py";
-  string bootloader =
-      "/home/lieven/.platformio/packages/framework-arduinoespressif32/tools/"
-      "sdk/bin/bootloader_dio_40m.bin";
-  string partitions =
-      "/home/lieven/workspace/broker-proxy/arduino_client/.pio/build/"
-      "nodemcu-32s/partitions.bin";
-  string boot_app0 =
-      "/home/lieven/.platformio/packages/framework-arduinoespressif32/tools/"
-      "partitions/boot_app0.bin";
-  string firmware = ".pio/build/nodemcu-32s/firmware.bin";
-  string command =
-      stringFormat("%s %s --chip esp32 --port %s --baud %u "
-                   " --before default_reset --after hard_reset write_flash -z "
-                   " --flash_mode dio --flash_freq 40m --flash_size detect "
-                   " 0x1000 %s "
-                   " 0x8000 %s "
-                   " 0xe000 %s "
-                   " 0x10000 %s",
-                   python, esptool, port, baudrate, bootloader, partitions,
-                   boot_app0, firmware);
-
-  return true;
-}
-
 //================================================================
 
 //==========================================================================
@@ -166,45 +114,62 @@ int main(int argc, char **argv) {
   // CBOR de-/serialization
 
   /*serialSession.incoming() >>
-      [&](const String &s) { INFO("RXD %s", s.c_str()); };*/
+      [&](const Bytes &s) { INFO("RXD %s", hexDump(s).c_str()); };*/
 
-  // filter commands from uC
-  auto getAnyMsg = new SinkFunction<String>([&](const String &frame) {
+  auto getAnyMsg = new SinkFunction<Bytes>([&](const Bytes &frame) {
+    CborReader cborReader(1000);
     int msgType;
-    Json json = Json::parse(frame);
-    if (json.type() == Json::value_t::array) {
-      int msgType = json[0].get<int>();
-      String arg1 = json[1].get<String>();
-      switch (msgType) {
-      case B_PUBLISH: {
-        Json arg2 = json[2];
-        broker.publish(arg1, arg2.dump());
-        break;
+    cborReader.fill(frame);
+    if (cborReader.checkCrc()) {
+ //     INFO("RXD good Crc hex[%d] : %s", frame.size(), hexDump(frame).c_str());
+      std::string s;
+      cborReader.parse().toJson(s);
+      Bytes bs = cborReader.toBytes();
+  //    INFO("RXD cbor[%d]: %s", bs.size(), hexDump(bs).c_str());
+      INFO("RXD cbor[%d]: %s", bs.size(), s.c_str());
+      if (cborReader.parse().array().get(msgType).ok()) {
+        switch (msgType) {
+        case B_PUBLISH: {
+          std::string topic;
+          if (cborReader.get(topic).ok()) {
+            String s;
+            cborReader.toJson(s);
+            broker.publish(topic, s);
+          } else {
+            INFO(" invalid CBOR publish");
+          }
+          break;
+        }
+        case B_SUBSCRIBE: {
+          std::string topic;
+          if (cborReader.get(topic).ok())
+            broker.subscribe(topic);
+          break;
+        }
+        case B_NODE: {
+          std::string nodeName;
+          if (cborReader.get(nodeName).ok()) {
+            String topic = "dst/";
+            topic += nodeName;
+            topic += "/*";
+            broker.subscribe(topic);
+            topic = "dst/";
+            topic += nodeName;
+            topic += "-proxy/*";
+            brokerProxy.subscribe(topic);
+          }
+          break;
+        }
+        }
       }
-      case B_SUBSCRIBE: {
-        broker.subscribe(arg1);
-        break;
-      }
-      case B_NODE: {
-        String topic = "dst/";
-        topic += arg1;
-        topic += "/*";
-        broker.subscribe(topic);
-        topic = "dst/";
-        topic += arg1;
-        topic += "-proxy/*";
-        brokerProxy.subscribe(topic);
-        break;
-      }
-      };
+      cborReader.close();
+    } else {
+      if ( frame.back() != '\n') INFO(" invalid CRC [%d] %s",frame.size(),hexDump(frame).c_str());
+      serialSession.logs().emit(std::string(frame.begin(), frame.end()));
     }
   });
 
   serialSession.incoming() >> getAnyMsg;
-
-  /* getPubMsg >> [&](const PubMsg &msg) {
-     INFO("PUBLISH %s %s ", msg.topic, cborDump(msg.payload).c_str());
-   };*/
 
   SinkFunction<String> redisLogStream([&](const String &bs) {
     static String buffer;
@@ -229,10 +194,13 @@ int main(int argc, char **argv) {
       ::write(1, ColorDefault, strlen(ColorDefault));
   */
   broker.incoming() >>
-      new LambdaFlow<PubMsg, String>([&](String &msg, const PubMsg &pub) {
-        Json json = pub.payload;
-        Json v = {B_PUBLISH, pub.topic, json};
-        msg = v.dump();
+      new LambdaFlow<PubMsg, Bytes>([&](Bytes &msg, const PubMsg &pub) {
+        CborWriter writer(100);
+        writer.reset().array().add(B_PUBLISH).add(pub.topic);
+        cborAddJson(writer, pub.payload);
+        writer.close();
+        writer.addCrc();
+        msg = writer.bytes();
         return true;
       }) >>
       serialSession.outgoing();

@@ -29,7 +29,7 @@ class SessionSerial : public SessionAbstract {
   ValueFlow<bool> _connected;
   ValueFlow<String> _logs;
 
-public:
+ public:
   //  ValueSource<TcpCommand> command;
   SessionSerial(Thread &thread, Config config);
   bool init();
@@ -48,7 +48,7 @@ public:
 class SerialSessionError : public Invoker {
   SessionSerial &_serialSession;
 
-public:
+ public:
   SerialSessionError(SessionSerial &serialSession)
       : _serialSession(serialSession){};
   void invoke() { _serialSession.onError(); }
