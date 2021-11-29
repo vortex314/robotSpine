@@ -88,7 +88,7 @@ Config loadConfig(int argc, char **argv) {
 
 class ClientProxy : public Actor {
   BrokerRedis _broker;
-  UdpAddress _source;
+  UdpAddress _sourceAddress;
   QueueFlow<Bytes> _incoming;
   QueueFlow<Bytes> _outgoing;
   String nodeName;
@@ -97,18 +97,17 @@ class ClientProxy : public Actor {
   ClientProxy(Thread &thread, Config config, UdpAddress source)
       : Actor(thread),
         _broker(thread, config),
-        _source(source),
+        _sourceAddress(source),
         _incoming(10, "incoming"),
         _outgoing(5, "outgoing") {
-    INFO(" created clientProxy %s ", _source.toString().c_str());
+    INFO(" created clientProxy %s ", _sourceAddress.toString().c_str());
   };
   void init() {
     _broker.init();
-    _broker.connect(_source.toString().c_str());
-    _incoming >> [&](const Bytes &bs) {
-      INFO(" %s client rxd %s ", _source.toString().c_str(),
+  /*  _incoming >> [&](const Bytes &bs) {
+      INFO(" %s client rxd %s ", _sourceAddress.toString().c_str(),
            hexDump(bs).c_str());
-    };
+    };*/
 
     auto getAnyMsg = new SinkFunction<Bytes>([&](const Bytes &frame) {
       CborReader cborReader(1000);
@@ -126,23 +125,22 @@ class ClientProxy : public Actor {
           switch (msgType) {
             case B_PUBLISH: {
               std::string topic;
-              if (cborReader.get(topic).ok()) {
+              if (_broker.connected() && cborReader.get(topic).ok()) {
                 String s;
                 cborReader.toJson(s);
                 _broker.publish(topic, s);
-              } else {
-                INFO(" invalid CBOR publish");
-              }
+              } 
               break;
             }
             case B_SUBSCRIBE: {
               std::string topic;
-              if (cborReader.get(topic).ok()) _broker.subscribe(topic);
+              if (_broker.connected() && cborReader.get(topic).ok()) _broker.subscribe(topic);
               break;
             }
             case B_NODE: {
               std::string nodeName;
               if (cborReader.get(nodeName).ok()) {
+                _broker.connect(nodeName);
                 String topic = "dst/";
                 topic += nodeName;
                 topic += "/*";
@@ -154,7 +152,7 @@ class ClientProxy : public Actor {
         }
         cborReader.close();
       } else {
-          INFO(" invalid CRC [%d] %s", frame.size(), hexDump(frame).c_str());
+        INFO(" invalid CRC [%d] %s", frame.size(), hexDump(frame).c_str());
         //   serialSession.logs().emit(std::string(frame.begin(), frame.end()));
       }
     });
@@ -197,7 +195,7 @@ class ClientProxy : public Actor {
   }
   Sink<Bytes> &incoming() { return _incoming; }
   Source<Bytes> &outgoing() { return _outgoing; }
-  UdpAddress src() { return _source; }
+  UdpAddress src() { return _sourceAddress; }
 };
 
 //==========================================================================
@@ -219,23 +217,27 @@ int main(int argc, char **argv) {
   brokerProxy.connect("udp-proxy");
   UdpAddress serverAddress;
   UdpAddress::fromUri(serverAddress, "0.0.0.0:9999");
+  INFO("%s",serverAddress.toString().c_str());
 
   udpSession.recv() >> [&](const UdpMsg &udpMsg) {
-    INFO(" UDP RXD %s => %s ", udpMsg.src.toString().c_str(),
-         udpMsg.dst.toString().c_str());
+ //   INFO(" UDP RXD %s => %s ", udpMsg.src.toString().c_str(),
+ //        udpMsg.dst.toString().c_str());
     UdpAddress src = udpMsg.src;
     ClientProxy *clientProxy;
     auto it = clients.find(src);
     if (it == clients.end()) {
       clientProxy = new ClientProxy(workerThread, brokerConfig, src);
       clientProxy->init();
-      clientProxy->outgoing() >> [&](const Bytes &bs) {
-        UdpMsg msg;
-        msg.message = bs;
-        msg.dst = clientProxy->src();
-        msg.src = serverAddress;
-        udpSession.send().on(msg);
-      };
+      clientProxy->outgoing() >>
+          [&, clientProxy](const Bytes &bs) {
+            UdpMsg msg;
+            msg.message = bs;
+            msg.dst = clientProxy->src();
+            msg.src = serverAddress;
+            INFO("TXD UDP %s=>%s:%s ", msg.src.toString().c_str(),
+                 msg.dst.toString().c_str(), cborDump(msg.message).c_str());
+            udpSession.send().on(msg);
+          };
       clients.emplace(src, clientProxy);
     } else {
       clientProxy = it->second;

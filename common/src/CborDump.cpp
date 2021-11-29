@@ -41,7 +41,7 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
     case CborArrayType: {
       CborValue recursed;
       assert(cbor_value_is_container(it));
-      ss << ("Array[");
+      ss << ("[");
       ret = cbor_value_enter_container(it, &recursed);
       CBOR_CHECK(ret, "enter container failed", err, ret);
       ret = dumpCborRecursive(ss, &recursed, nestingLevel + 1);
@@ -55,7 +55,7 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
     case CborMapType: {
       CborValue recursed;
       assert(cbor_value_is_container(it));
-      ss << ("Map{");
+      ss << ("{");
       ret = cbor_value_enter_container(it, &recursed);
       CBOR_CHECK(ret, "enter container failed", err, ret);
       ret = dumpCborRecursive(ss, &recursed, nestingLevel + 1);
@@ -98,7 +98,7 @@ CborError dumpCborRecursive(stringstream &ss, CborValue *it, int nestingLevel) {
       size_t n;
       ret = cbor_value_dup_text_string(it, &buf, &n, it);
       CBOR_CHECK(ret, "parse text string failed", err, ret);
-      ss << "'" << (const char *)buf << "'";
+      ss << '"' << (const char *)buf << '"';
       free(buf);
       //    ret = cbor_value_advance(it);
       continue;

@@ -12,11 +12,6 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   _reconnectHandler >> [&](const bool &)
   { reconnect(); };
 
-  connected >> [](const bool &connected)
-  {
-    LOGI << "Connection state : " << (connected ? "connected" : "disconnected")
-         << LEND;
-  };
   connected = false;
   _reconnectTimer >> [&](const TimerMsg &)
   {
@@ -136,7 +131,7 @@ int BrokerRedis::connect(string node)
   options.command_timeout = new timeval{3, 0}; // 3 sec
   REDIS_OPTIONS_SET_PRIVDATA(&options, this, free_privdata);
 
-  LOGI << "Connecting to Redis " << _hostname << ":" << _port << LEND;
+  INFO("Connecting to Redis %s:%d as '%s'.",_hostname.c_str(),_port,_node.c_str());
   _subscribeContext = redisConnectWithOptions(&options);
   if (_subscribeContext == NULL || _subscribeContext->err)
   {
@@ -278,6 +273,7 @@ int BrokerRedis::unSubscribe(string pattern)
 
 int BrokerRedis::publish(string topic, const std::string &bs)
 {
+  
   if (!connected())
     return ENOTCONN;
   redisReply *r = (redisReply *)redisCommand(
@@ -291,7 +287,7 @@ int BrokerRedis::publish(string topic, const std::string &bs)
   {
     // showReply(r);
     freeReplyObject(r);
-    DEBUG("Redis PUBLISH %s : [%d] ", topic.c_str(), bs.size());
+    INFO("Redis PUBLISH %s : [%d] ", topic.c_str(), bs.size());
   }
   return 0;
 }

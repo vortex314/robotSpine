@@ -113,8 +113,10 @@ int main(int argc, char **argv) {
   brokerProxy.connect(config["serial"]["port"]);
   // CBOR de-/serialization
 
-  /*serialSession.incoming() >>
-      [&](const Bytes &s) { INFO("RXD %s", hexDump(s).c_str()); };*/
+  serialSession.incoming() >>
+      [&](const Bytes &s) { 
+//        INFO("RXD %s", hexDump(s).c_str()); 
+        };
 
   auto getAnyMsg = new SinkFunction<Bytes>([&](const Bytes &frame) {
     CborReader cborReader(1000);

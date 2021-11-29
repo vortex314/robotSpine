@@ -9,6 +9,9 @@ SessionUdp::SessionUdp(Thread &thread, Config config)
       _recv(10, "recv") {
   _errorInvoker = new UdpSessionError(*this);
   _port = config["port"].get<uint32_t>();
+  _send >> [&](const UdpMsg& um){
+    _udp.send(um);
+  };
 }
 
 bool SessionUdp::init() {
@@ -33,8 +36,8 @@ bool SessionUdp::disconnect() {
 void SessionUdp::invoke() {
   int rc = _udp.receive(_udpMsg);
   if (rc == 0) {  // read ok
-    INFO("UDP RXD %s => %s ", _udpMsg.src.toString().c_str(),
-         hexDump(_udpMsg.message).c_str());
+ /*   INFO("UDP RXD %s => %s ", _udpMsg.src.toString().c_str(),
+         hexDump(_udpMsg.message).c_str());*/
     _recv.on(_udpMsg);
   }
 }

@@ -38,15 +38,18 @@ struct UdpAddress {
   in_addr_t ip;
   uint16_t port;
   bool operator==(UdpAddress &other) {
-    return other.ip == ip && other.port == port;
+    return memcmp(&other.ip, &ip,sizeof ip) ==0 && other.port == port;
   }
   static bool fromUri(UdpAddress &, std::string);
- /* bool operator()(const UdpAddress &lhs, const UdpAddress &rhs) const {
-    return false;
+  /* bool operator()(const UdpAddress &lhs, const UdpAddress &rhs) const {
+     return false;
+   }*/
+  bool operator<(const UdpAddress &other) const { return memcmp(&other.ip, &ip,sizeof ip)<0 ; }
+  /*UdpAddress& operator=(const UdpAddress& rhs){
+    port = rhs.port;
+    memcpy(&ip,&rhs.ip,sizeof( in_addr_t));
+    return *this;
   }*/
-    bool operator<(const UdpAddress &other) const {
-    return port < other.port ;
-  }
   std::string toString() const;
 };
 
@@ -69,7 +72,7 @@ class Udp {
   void port(uint16_t port) { _myPort = port; }
   int init();
   int receive(UdpMsg &);
-  int send(UdpMsg &);
+  int send(const UdpMsg &);
   int fd() { return _sockfd; };
   int deInit();
 };

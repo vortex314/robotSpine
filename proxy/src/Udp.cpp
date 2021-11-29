@@ -49,9 +49,8 @@ int Udp::receive(UdpMsg &rxd) {
     rxd.src.port = ntohs(clientaddr.sin_port);
     rxd.dst.ip = INADDR_ANY;
     rxd.dst.port = _myPort;
-    char strIp[100];
-    inet_ntop(AF_INET, &(rxd.src.ip), strIp, INET_ADDRSTRLEN);
- //   INFO(" received from %s:%d ", strIp, rxd.src.port);
+  /*  INFO(" received from %s to %s  ", rxd.src.toString().c_str(),
+         rxd.dst.toString().c_str());*/
     rxd.message = Bytes(buffer, buffer + rc);
     return 0;
   } else {
@@ -62,11 +61,14 @@ int Udp::receive(UdpMsg &rxd) {
 // Client side implementation of UDP client-server model
 
 // Driver code
-int Udp::send(UdpMsg &udpMsg) {
+int Udp::send(const UdpMsg &udpMsg) {
   struct sockaddr_in server;
   server.sin_family = AF_INET;
-  server.sin_port = udpMsg.dst.port;
+  server.sin_port = htons(udpMsg.dst.port);
   server.sin_addr.s_addr = udpMsg.dst.ip;
+
+  /* INFO("TXD UDP => %s : %s ", udpMsg.dst.toString().c_str(),
+        hexDump(udpMsg.message).c_str());*/
 
   int rc = sendto(_sockfd, udpMsg.message.data(), udpMsg.message.size(), 0,
                   (const struct sockaddr *)&server, sizeof(server));
@@ -94,46 +96,46 @@ int main(int argc,char* argv[]) {
 #include <string.h>  //memset
 #include <sys/socket.h>
 bool getInetAddr(in_addr_t &addr, std::string &hostname) {
-  addr = (in_addr_t)(-1);
-  if (isdigit(hostname[0])) {  // IP dot notation
-    addr = inet_addr(hostname.c_str());
-  } else {  // host name
-    int sockfd;
-    struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_in *h;
-    int rv;
+  BZERO(addr);
+  struct addrinfo hints, *servinfo, *p;
+  struct sockaddr_in *h;
+  int rv;
 
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;  // use AF_INET6 to force IPv6
-    hints.ai_socktype = SOCK_STREAM;
+  BZERO(hints);
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
 
-    if ((rv = getaddrinfo(hostname.c_str(), "http", &hints, &servinfo)) != 0) {
-      fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-      return 1;
-    }
-
-    // loop through all the results and connect to the first we can
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-      if (p->ai_addr->sa_family == AF_INET) {
-        sockaddr *sa = p->ai_addr;
-        addr = ((sockaddr_in *)sa)->sin_addr.s_addr;
-      }
-    }
-    freeaddrinfo(servinfo);  // all done with this structure
+  if ((rv = getaddrinfo(hostname.c_str(), 0, &hints, &servinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+    return false;
   }
-  return addr != (in_addr_t)(-1);
+
+  // loop through all the results and connect to the first we can
+  for (p = servinfo; p != NULL; p = p->ai_next) {
+    if (p->ai_addr->sa_family == AF_INET) {
+      sockaddr *sa = p->ai_addr;
+      addr = ((sockaddr_in *)sa)->sin_addr.s_addr;
+      freeaddrinfo(servinfo);  // all done with this structure
+      return true;
+    }
+  }
+  freeaddrinfo(servinfo);  // all done with this structure
+  return false;
 }
 
-bool getNumber(uint16_t &x, const string &s) {
+bool getNetPort(uint16_t &x, const string &s) {
   x = 0;
   for (char const &ch : s) {
     if (std::isdigit(ch)) {
       x *= 10;
-      x += x - '0';
+      x += ch - '0';
     } else {
       return false;
     }
   }
+//  INFO("getNetPort(%s)=%d",s.c_str(),x);
+//  x = htons(x);
   return true;
 }
 
@@ -141,14 +143,15 @@ bool UdpAddress::fromUri(UdpAddress &udpAddress, std::string uri) {
   auto parts = split(uri, ':');
 
   return parts.size() == 2 && getInetAddr(udpAddress.ip, parts[0]) &&
-         getNumber(udpAddress.port, parts[1]);
+         getNetPort(udpAddress.port, parts[1]);
 }
 
-std::string UdpAddress::toString() const{
+std::string UdpAddress::toString() const {
   char charBuffer[100];
-  const char* ipString = inet_ntop(AF_INET,&ip,charBuffer,sizeof(charBuffer));
-  std::string url = ipString==0 ? "UNKNOWN":ipString;
-  url+=":";
-  url+=std::to_string(port);
+  const char *ipString =
+      inet_ntop(AF_INET, &ip, charBuffer, sizeof(charBuffer));
+  std::string url = ipString == 0 ? "UNKNOWN" : ipString;
+  url += ":";
+  url += std::to_string(port);
   return url;
 }
