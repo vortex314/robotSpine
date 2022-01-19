@@ -7,7 +7,8 @@
 #include <broker_protocol.h>
 #include <cbor.h>
 #include <config.h>
-#include <log.h>
+#include <Log.h>
+#include <StringUtility.h>
 #include <stdio.h>
 #include <util.h>
 
@@ -17,7 +18,7 @@
 
 using namespace std;
 
-LogS logger;
+Log logger;
 
 const int MsgPublish::TYPE;
 
@@ -28,8 +29,10 @@ const char *CMD_TO_STRING[] = {"B_CONNECT",   "B_DISCONNECT", "B_SUBSCRIBER",
                                "B_QUERY"};
 
 CborWriter &cborAddJson(CborWriter &writer, Json v) {
-  if (v.is_number_integer()) {
-    writer.add((int)v);
+  if ( v.is_number_unsigned() ) {
+    writer.add((uint64_t)v);
+  } else if (v.is_number_integer()) {
+    writer.add((int64_t)v);
   } else if (v.is_string()) {
     writer.add((std::string)v);
   } else if (v.is_number_float()) {
@@ -37,7 +40,7 @@ CborWriter &cborAddJson(CborWriter &writer, Json v) {
   } else if (v.is_boolean()) {
     writer.add((bool)v);
   } else {
-    writer.add("====================");
+    assert(true==false);
   }
   return writer;
 }
@@ -200,7 +203,7 @@ class ClientProxy : public Actor {
 
 //==========================================================================
 int main(int argc, char **argv) {
-  LOGI << "Loading configuration." << LEND;
+  INFO("Loading configuration." );
   Config config = loadConfig(argc, argv);
   Thread workerThread("worker");
   Config udpConfig = config["udp"];

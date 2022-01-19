@@ -43,7 +43,7 @@ void SessionUdp::invoke() {
 }
 // on error issue on file descriptor
 void SessionUdp::onError() {
-  LOGW << " Error occured on SessionUdp. Disconnecting.. " << LEND;
+  WARN(" Error occured on SessionUdp. Disconnecting.. " );
   disconnect();
 }
 

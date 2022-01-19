@@ -1,6 +1,8 @@
 #ifndef _SESSION_ABSTRACT_H_
 #define _SESSION_ABSTRACT_H_
 #include <limero.h>
+#include <config.h>
+#include <context.h>
 
 class SessionError;
 

@@ -91,7 +91,7 @@ bool ppp_deframe(Bytes &out, const Bytes &in) {
   bool escFlag = false;
   Fcs fcs;
   if (in.size() < 3) {
-    LOGW << " buffer too small ["<<in.size()<<"]";
+    WARN(" buffer too small [%d]",in.size());
     return false;
   }
   // The receiver must reverse the octet stuffing procedure
@@ -103,7 +103,7 @@ bool ppp_deframe(Bytes &out, const Bytes &in) {
       // All occurrences of 0x7D indicate that the next character is escaped
       escFlag = true;
     } else if (c == PPP_FLAG_CHAR) {
-      LOGW << (" didn't expect FLAG char ");
+      WARN(" didn't expect FLAG char ");
       return false;
     } else if (escFlag) {
       // The character is XOR'ed with 0x20

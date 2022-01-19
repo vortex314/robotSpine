@@ -12,7 +12,8 @@
                 "${workspaceFolder}/../json/single_include",
                 "${workspaceFolder}/../hiredis",
                 "${workspaceFolder}/../tinycbor/src",
-                "${workspaceFolder}/src/"
+                "${workspaceFolder}/src/",
+                "${workspaceFolder}/../../components/spine"
             ],
             "defines": [
                 "NOTHING",

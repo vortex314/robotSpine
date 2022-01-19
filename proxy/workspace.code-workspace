@@ -4,16 +4,10 @@
 			"path": "."
 		},
 		{
-			"path": "../broker"
-		},
-		{
-			"path": "../linux"
+			"path": "../../common"
 		},
 		{
 			"path": "../common"
-		},
-		{
-			"path": "../tinycbor/src"
 		}
 	],
 	"settings": {

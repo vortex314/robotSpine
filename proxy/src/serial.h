@@ -2,7 +2,7 @@
 #define _SERIAL_H
 
 // For convenience
-#include <log.h>
+#include <Log.h>
 #include <asm-generic/ioctls.h>
 #include <fcntl.h>
 #include <linux/serial.h>

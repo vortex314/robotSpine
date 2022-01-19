@@ -2,7 +2,7 @@
 #define _BROKER_DREDIS_H_
 //#include <async.h>
 #include <hiredis.h>
-#include <log.h>
+#include <Log.h>
 #include <broker_protocol.h>
 
 #include "limero.h"

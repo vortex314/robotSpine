@@ -11,10 +11,8 @@
             "name": "g++ - Build and debug active file",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/udpProxy",
+            "program": "${workspaceFolder}/build/serialProxy",
             "args": [
-                "-u",
-                "9999"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

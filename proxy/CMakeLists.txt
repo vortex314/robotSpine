@@ -3,6 +3,7 @@ project(spine)
 
 add_executable(serialProxy)
 add_executable(udpProxy)
+add_executable(cborTest)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g ")
@@ -22,17 +23,19 @@ set(LINUX ../linux/src)
 set(TINYCBOR ../tinycbor )
 set(JSON ../json )
 set(COMMON ../common/src )
+set(COMPONENTS ../../components)
 
 
 include_directories(
   src 
   /usr/local/include
+  ${COMPONENTS}/inc
   ${COMMON}
   ${TINYCBOR}/src
   ${JSON}/single_include
   ${HIREDIS}
   ${BROKER}
-  ${LINUX}
+  ${COMPONENTS}/linux
  )
 
 target_sources(serialProxy PRIVATE 
@@ -41,17 +44,18 @@ target_sources(serialProxy PRIVATE
     src/SessionSerial.cpp
     src/serial.cpp 
     ${BROKER}/BrokerRedisJson.cpp
-    ${LINUX}/logger.cpp
-    ${LINUX}/Sys.cpp
-    ${LINUX}/limero.cpp
+    ${COMPONENTS}/linux/Log.cpp
+    ${COMPONENTS}/linux/Sys.cpp
+    ${COMPONENTS}/linux/limero.cpp
     ${COMMON}/ppp_frame.cpp 
     ${COMMON}/Frame.cpp
     ${COMMON}/frame.cpp
     ${COMMON}/Crc32.cpp
     ${COMMON}/util.cpp 
     ${COMMON}/CborDump.cpp
-    ${COMMON}/CborWriter.cpp
-    ${COMMON}/CborReader.cpp
+    ${COMPONENTS}/src/CborWriter.cpp
+    ${COMPONENTS}/src/CborReader.cpp
+    ${COMPONENTS}/src/StringUtility.cpp
     ) 
 
 target_sources(udpProxy PRIVATE 
@@ -60,17 +64,26 @@ target_sources(udpProxy PRIVATE
     src/SessionUdp.cpp
     src/Udp.cpp 
     ${BROKER}/BrokerRedisJson.cpp
-    ${LINUX}/logger.cpp
-    ${LINUX}/Sys.cpp
-    ${LINUX}/limero.cpp
+    ${COMPONENTS}/linux/Log.cpp
+    ${COMPONENTS}/linux/Sys.cpp
+    ${COMPONENTS}/linux/limero.cpp
     ${COMMON}/ppp_frame.cpp 
     ${COMMON}/Frame.cpp
     ${COMMON}/frame.cpp
     ${COMMON}/Crc32.cpp
     ${COMMON}/util.cpp 
     ${COMMON}/CborDump.cpp
-    ${COMMON}/CborWriter.cpp
-    ${COMMON}/CborReader.cpp
+    ${COMPONENTS}/src/CborWriter.cpp
+    ${COMPONENTS}/src/CborReader.cpp
+    ${COMPONENTS}/src/StringUtility.cpp
+    ) 
+
+
+    target_sources(cborTest PRIVATE 
+    src/cborTest.cpp 
+    ${COMPONENTS}/linux/Log.cpp
+    ${COMPONENTS}/linux/Sys.cpp
+    ${COMPONENTS}/src/StringUtility.cpp
     ) 
 
 
@@ -88,3 +101,9 @@ target_link_libraries(udpProxy
 -lrt  
 -latomic)
 
+
+target_link_libraries(cborTest 
+-L${TINYCBOR}/lib -l:libtinycbor.a
+-lpthread  
+-lrt  
+-latomic)

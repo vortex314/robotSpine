@@ -3,7 +3,8 @@
 #include <CborWriter.h>
 #include <cbor.h>
 #include <config.h>
-#include <log.h>
+#include <Log.h>
+#include <StringUtility.h>
 #include <stdio.h>
 #include <thread>
 #include <unordered_map>
@@ -12,7 +13,7 @@
 
 using namespace std;
 
-LogS logger;
+Log logger;
 
 #include "BrokerRedisJson.h"
 #include <Frame.h>
@@ -43,7 +44,7 @@ CborWriter &cborAddJson(CborWriter &writer, Json v) {
 
 #define fatal(message)                                                         \
   {                                                                            \
-    LOGW << message << LEND;                                                   \
+    WARN(message);                                                   \
     exit(-1);                                                                  \
   }
 
@@ -80,7 +81,7 @@ Config loadConfig(int argc, char **argv) {
       abort();
     }
 
-  LOGI << cfg.dump(2) << LEND;
+  INFO( cfg.dump(2).c_str() );
   return cfg;
 };
 
@@ -88,7 +89,7 @@ Config loadConfig(int argc, char **argv) {
 
 //==========================================================================
 int main(int argc, char **argv) {
-  LOGI << "Loading configuration." << LEND;
+  INFO("Loading configuration." );
   Config config = loadConfig(argc, argv);
   Thread workerThread("worker");
   Config serialConfig = config["serial"];
@@ -136,6 +137,7 @@ int main(int argc, char **argv) {
           if (cborReader.get(topic).ok()) {
             String s;
             cborReader.toJson(s);
+            if ( s=="0." ) s="0.0";
             broker.publish(topic, s);
           } else {
             INFO(" invalid CBOR publish");
@@ -166,7 +168,10 @@ int main(int argc, char **argv) {
       }
       cborReader.close();
     } else {
-      if ( frame.back() != '\n') INFO(" invalid CRC [%d] %s",frame.size(),hexDump(frame).c_str());
+      if ( frame.back() != '\n') {
+        INFO(" invalid CRC [%d] %s",frame.size(),hexDump(frame).c_str());
+        INFO("%s",std::string(frame.begin(), frame.end()).c_str());
+      }
       serialSession.logs().emit(std::string(frame.begin(), frame.end()));
     }
   });

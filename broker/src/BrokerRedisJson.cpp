@@ -1,5 +1,6 @@
 
 #include <BrokerRedisJson.h>
+#include <StringUtility.h> 
 
 BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
     : _thread(thread), _incoming(10, "incoming"), _outgoing(10, "outgoing"),
@@ -8,6 +9,8 @@ BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
   _hostname = cfg.find("host") == cfg.end() ? "localhost" : cfg["host"].get<String>();
   _port = cfg.find("port") == cfg.end() ? 6379 : cfg["port"].get<int>();
 
+  _incoming.async(thread);
+  _outgoing.async(thread);
   _reconnectHandler.async(thread);
   _reconnectHandler >> [&](const bool &)
   { reconnect(); };
@@ -55,12 +58,12 @@ void BrokerRedis::onMessage(redisContext *c, void *reply, void *me)
     }
     else
     {
-      LOGW << "unexpected array " << r->element[0]->str << LEND;
+      WARN("unexpected array %s ",r->element[0]->str );
     }
   }
   else
   {
-    LOGW << " unexpected reply " << LEND;
+    WARN(" unexpected reply " );
   }
 }
 
@@ -121,7 +124,7 @@ int BrokerRedis::connect(string node)
   _srcPrefix += _node + "/";
   if (connected())
   {
-    LOGI << " Connecting but already connected." << LEND;
+    INFO(" Connecting but already connected." );
     connected = true;
     return 0;
   }
@@ -224,7 +227,7 @@ int BrokerRedis::reconnect()
 
 int BrokerRedis::disconnect()
 {
-  LOGI << (" disconnecting.") << LEND;
+  INFO(" disconnecting.") ;
   if (!connected())
     return 0;
   _thread.deleteInvoker(_subscribeContext->fd);
