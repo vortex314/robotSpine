@@ -4,13 +4,10 @@
             "name": "ESP32",
             "includePath": [
                 "/usr/local/include",
-                "${workspaceFolder}/../linux/src",
-                "${workspaceFolder}/../common/src",
-                "${workspaceFolder}/../broker/src",
-                "${workspaceFolder}/../../tinycbor/src",
                 "${workspaceFolder}/../json/single_include",
                 "${workspaceFolder}/../../hiredis",
-                "${workspaceFolder}/../etl/include",
+                "${workspaceFolder}/../../components/inc",
+                "${workspaceFolder}/../../components/linux",
                 "${workspaceFolder}/src/"
             ],
             "defines": [

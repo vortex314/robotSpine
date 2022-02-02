@@ -1,11 +1,13 @@
+#include <ArduinoJson.h>
+
 #include <nlohmann/json.hpp>
 using Json = nlohmann::json;
-#include <config.h>
+#include <Log.h>
+#include <StringUtility.h>
 #include <limero.h>
-#include <log.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <util.h>
+// #include <util.h>
 
 #include <thread>
 #include <unordered_map>
@@ -13,49 +15,12 @@ using Json = nlohmann::json;
 
 using namespace std;
 
-LogS logger;
+Log logger;
+StaticJsonDocument<10240> jsonDoc;
 
 #include <BrokerRedisJson.h>
 
-Config loadConfig(int argc, char **argv) {
-  Config cfg;
-  // defaults
-  cfg["serial"]["port"] = "/dev/ttyUSB0";
-  cfg["serial"]["baudrate"] = 115200;
-  cfg["broker"]["host"] = "localhost";
-  cfg["broker"]["port"] = 6379;
-  String s = cfg.dump(2);
-  printf("%s\n", s.c_str());
-  INFO("%s", s.c_str());
-
-  // override args
-  int c;
-  while ((c = getopt(argc, argv, "h:p:s:b:")) != -1) switch (c) {
-      case 'b':
-        cfg["serial"]["baudrate"] = atoi(optarg);
-        break;
-      case 's':
-        cfg["serial"]["port"] = optarg;
-        break;
-      case 'h':
-        cfg["broker"]["host"] = optarg;
-        break;
-      case 'p':
-        cfg["broker"]["port"] = atoi(optarg);
-        break;
-      case '?':
-        printf("Usage %s -h <host> -p <port> -s <serial_port> -b <baudrate>\n",
-               argv[0]);
-        break;
-      default:
-        WARN("Usage %s -h <host> -p <port> -s <serial_port> -b <baudrate>\n",
-             argv[0]);
-        abort();
-    }
-
-  INFO("%s", cfg.dump(2).c_str());
-  return cfg;
-};
+typedef JsonObject Config;
 
 template <typename T>
 class TimeoutFlow : public LambdaFlow<T, bool>, public Actor {
@@ -74,9 +39,15 @@ class TimeoutFlow : public LambdaFlow<T, bool>, public Actor {
   }
 };
 
+template <typename T>
+T scale(T x, T x1, T x2, T y1, T y2) {
+  return y1 + (x - x1) * (y2 - y1) / (x2 - x1);
+}
+
 //==========================================================================
 int main(int argc, char **argv) {
-  Config config = loadConfig(argc, argv);
+  Config config = jsonDoc.as<JsonObject>();
+
   Thread workerThread("worker");
   Config brokerConfig = config["broker"];
   TimerSource pubTimer(workerThread, 2000, true, "pubTimer");
@@ -113,6 +84,20 @@ int main(int argc, char **argv) {
       }
     });
   };
+
+  broker.subscriber<int32_t>("src/joystick/axis/1") >>
+      *new LambdaFlow<int32_t, int32_t>([&](int32_t &out, const int32_t &in) {
+        out = -scale(in, -32768, +32768, -1000, +1000);
+        return true;
+      }) >>
+      broker.publisher<int32_t>("dst/hover/motor/speed");
+
+  broker.subscriber<int32_t>("src/joystick/axis/0") >>
+      *new LambdaFlow<int32_t, int32_t>([&](int32_t &out, const int32_t &in) {
+        out = scale(in, -32768, +32768, -1000, +1000);
+        return true;
+      }) >>
+      broker.publisher<int32_t>("dst/hover/motor/steer");
 
   broker.subscriber<uint64_t>("src/brain/system/loopback") >>
       *new LambdaFlow<uint64_t, uint64_t>(

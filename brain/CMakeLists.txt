@@ -22,32 +22,27 @@ find_library(REDIS_PLUS_PLUS_LIB redis++)
 # target_link_libraries(target ${REDIS_PLUS_PLUS_LIB})
 
 set(HIREDIS ../hiredis )
-set(BROKER ../broker/src)
-set(TINYCBOR ../tinycbor/src )
 set(JSON ../json/single_include )
-set(ETL ../etl )
-set(COMMON ../common/src )
-set(LINUX ../linux/src )
+set(ARDUINOJSON ../../ArduinoJson)
+set(COMPONENTS ../../components/ )
 
 include_directories(
   src 
   /usr/local/include
-  ${COMMON}
-  ${LINUX}
-  ${TINYCBOR}
-  ${ETL}/include
+  ${COMPONENTS}/inc
+  ${COMPONENTS}/linux
   ${HIREDIS}
-  ${BROKER}
-  ${JSON} )
+  ${JSON} 
+  ${ARDUINOJSON}/src)
 
 
 target_sources(redis-brain PRIVATE
-${LINUX}/Sys.cpp
-${LINUX}/limero.cpp
-${LINUX}/logger.cpp
-${BROKER}/BrokerRedisJson.cpp
-src/brain.cpp
-${COMMON}/util.cpp )
+    ${COMPONENTS}/linux/Sys.cpp
+    ${COMPONENTS}/linux/limero.cpp
+    ${COMPONENTS}/linux/Log.cpp
+    ${COMPONENTS}/linux/BrokerRedisJson.cpp
+    src/brain.cpp
+    ${COMPONENTS}/src/StringUtility.cpp )
 
 target_link_libraries(redis-brain 
 -L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
