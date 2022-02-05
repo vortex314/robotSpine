@@ -52,7 +52,7 @@ class Fcs {
   void clear() { _fcs = 0xFFFF; }
 };
 // add a byte to the buffer, escaped according to PPP standard
-inline void addEscaped(Bytes &out, byte c) {
+inline void addEscaped(Bytes &out, uint8_t c) {
   if (c == PPP_ESC_CHAR || c == PPP_FLAG_CHAR) {  // byte stuffing
     out.push_back(PPP_ESC_CHAR);
     out.push_back(c ^ PPP_MASK_CHAR);

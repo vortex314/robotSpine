@@ -1,12 +1,14 @@
 #include <SessionUdp.h>
 #include <ppp_frame.h>
 
-SessionUdp::SessionUdp(Thread &thread, Config config)
+SessionUdp::SessionUdp(Thread &thread, Json config)
     : SessionAbstract(thread, config),
       _incomingMessage(10, "_incomingMessage"),
       _outgoingMessage(10, "_outgoingMessage"),
       _send(10, "send"),
       _recv(10, "recv") {
+        _recv.async(thread);
+        _send.async(thread);
   _errorInvoker = new UdpSessionError(*this);
   _port = config["port"].get<uint32_t>();
   _send >> [&](const UdpMsg& um){

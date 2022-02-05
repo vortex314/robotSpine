@@ -24,6 +24,8 @@ set(TINYCBOR ../tinycbor )
 set(JSON ../json )
 set(COMMON ../common/src )
 set(COMPONENTS ../../components)
+set(ARDUINOJSON ../../ArduinoJson/src)
+
 
 
 include_directories(
@@ -33,6 +35,7 @@ include_directories(
   ${COMMON}
   ${TINYCBOR}/src
   ${JSON}/single_include
+  ${ARDUINOJSON}
   ${HIREDIS}
   ${BROKER}
   ${COMPONENTS}/linux
@@ -51,7 +54,6 @@ target_sources(serialProxy PRIVATE
     ${COMMON}/Frame.cpp
     ${COMMON}/frame.cpp
     ${COMMON}/Crc32.cpp
-    ${COMMON}/util.cpp 
     ${COMMON}/CborDump.cpp
     ${COMPONENTS}/src/CborWriter.cpp
     ${COMPONENTS}/src/CborReader.cpp
@@ -71,7 +73,6 @@ target_sources(udpProxy PRIVATE
     ${COMMON}/Frame.cpp
     ${COMMON}/frame.cpp
     ${COMMON}/Crc32.cpp
-    ${COMMON}/util.cpp 
     ${COMMON}/CborDump.cpp
     ${COMPONENTS}/src/CborWriter.cpp
     ${COMPONENTS}/src/CborReader.cpp

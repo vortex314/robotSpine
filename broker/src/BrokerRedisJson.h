@@ -24,7 +24,7 @@ struct SubscriberStruct {
 
 class BrokerRedis {
   Thread &_thread;
-  set<std::string> _subscriptions;
+  std::set<std::string> _subscriptions;
   int scout();
   std::string _hostname;
   uint16_t _port;
@@ -45,10 +45,10 @@ class BrokerRedis {
 
  public:
   ValueFlow<bool> connected;
-  ValueFlow<unordered_map<std::string, std::string>> stream;
+  ValueFlow<std::unordered_map<std::string, std::string>> stream;
   Source<PubMsg> &incoming() { return _incoming; };
 
-  BrokerRedis(Thread &, Config);
+  BrokerRedis(Thread &, Json);
   ~BrokerRedis();
   int init();
   int connect(std::string);
@@ -65,7 +65,7 @@ class BrokerRedis {
   int request(std::string cmd, std::function<void(redisReply *)> func);
   int getId(std::string);
   int newRedisPublisher(std::string topic);
-  vector<PubMsg> query(std::string);
+  std::vector<PubMsg> query(std::string);
   static std::string replyToString(void *r);
 
   template <typename T>

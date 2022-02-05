@@ -2,7 +2,7 @@
 #include <BrokerRedisJson.h>
 #include <StringUtility.h> 
 
-BrokerRedis::BrokerRedis(Thread &thread, Config cfg)
+BrokerRedis::BrokerRedis(Thread &thread, Json cfg)
     : _thread(thread), _incoming(10, "incoming"), _outgoing(10, "outgoing"),
       _reconnectTimer(thread, 3000, true, "reconnectTimer")
 {
@@ -51,7 +51,7 @@ void BrokerRedis::onMessage(redisContext *c, void *reply, void *me)
   {
     if (strcmp(r->element[0]->str, "pmessage") == 0)
     {
-      string topic = r->element[2]->str;
+      std::string topic = r->element[2]->str;
       pBroker->_incoming.on(
           {topic,
            Json::parse(String(r->element[3]->str, r->element[3]->str + r->element[3]->len))});
@@ -72,7 +72,7 @@ bool isFailedReply(redisReply *reply)
   return reply == 0 || reply->type == REDIS_REPLY_ERROR;
 }
 
-string BrokerRedis::replyToString(void *r)
+std::string BrokerRedis::replyToString(void *r)
 {
   if (r == 0)
   {
@@ -84,7 +84,7 @@ string BrokerRedis::replyToString(void *r)
   {
   case REDIS_REPLY_ARRAY:
   {
-    string result = "[";
+    std::string result = "[";
     for (int j = 0; j < reply->elements; j++)
     {
       result += replyToString(reply->element[j]);
@@ -95,7 +95,7 @@ string BrokerRedis::replyToString(void *r)
   }
   case REDIS_REPLY_INTEGER:
   {
-    return to_string(reply->integer);
+    return std::to_string(reply->integer);
   }
   case REDIS_REPLY_STRING:
     return stringFormat("'%s'", reply->str);
@@ -115,7 +115,7 @@ void free_privdata(void *pvdata) {}
 
 int BrokerRedis::init() { return 0; }
 
-int BrokerRedis::connect(string node)
+int BrokerRedis::connect(std::string node)
 {
   _node = node;
   _dstPrefix = "dst/";
@@ -237,11 +237,11 @@ int BrokerRedis::disconnect()
   return 0;
 }
 
-int BrokerRedis::subscribe(string pattern)
+int BrokerRedis::subscribe(std::string pattern)
 {
 //  INFO(" REDIS psubscribe %s", pattern.c_str());
   _subscriptions.insert(pattern);
-  string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
+  std::string cmd = stringFormat("PSUBSCRIBE %s", pattern.c_str());
   redisReply *r = (redisReply *)redisCommand(_subscribeContext, cmd.c_str());
   if (r)
   {
@@ -256,7 +256,7 @@ int BrokerRedis::subscribe(string pattern)
   }
 }
 
-int BrokerRedis::unSubscribe(string pattern)
+int BrokerRedis::unSubscribe(std::string pattern)
 {
   auto it = _subscriptions.find(pattern);
   if (it != _subscriptions.end())
@@ -274,7 +274,7 @@ int BrokerRedis::unSubscribe(string pattern)
   return 0;
 }
 
-int BrokerRedis::publish(string topic, const std::string &bs)
+int BrokerRedis::publish(std::string topic, const std::string &bs)
 {
   
   if (!connected())
@@ -321,7 +321,7 @@ int BrokerRedis::command(const char *format, ...)
   }
 }
 
-int BrokerRedis::request(string cmd, std::function<void(redisReply *)> func)
+int BrokerRedis::request(std::string cmd, std::function<void(redisReply *)> func)
 {
   if (!connected())
     return ENOTCONN;
@@ -339,13 +339,13 @@ int BrokerRedis::request(string cmd, std::function<void(redisReply *)> func)
 }
 
 #include <regex>
-bool BrokerRedis::match(string pattern, string topic)
+bool BrokerRedis::match(std::string pattern, std::string topic)
 {
   std::regex patternRegex(pattern);
   return std::regex_match(topic, patternRegex);
 }
 
-redisReply *BrokerRedis::xread(string key)
+redisReply *BrokerRedis::xread(std::string key)
 {
   if (!connected())
     return 0;

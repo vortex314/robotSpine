@@ -4,10 +4,7 @@
 			"path": "."
 		},
 		{
-			"path": "../../common"
-		},
-		{
-			"path": "../common"
+			"path": "../../components/linux"
 		}
 	],
 	"settings": {

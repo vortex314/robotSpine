@@ -18,6 +18,7 @@
 
 using namespace std;
 
+
 Log logger;
 
 const int MsgPublish::TYPE;
@@ -51,8 +52,8 @@ CborWriter &cborAddJson(CborWriter &writer, Json v) {
     exit(-1);                \
   }
 
-Config loadConfig(int argc, char **argv) {
-  Config cfg;
+Json loadConfig(int argc, char **argv) {
+  Json cfg;
   // defaults
   cfg["udp"]["port"] = 9999;
   cfg["udp"]["net"] = "0.0.0.0";
@@ -97,13 +98,15 @@ class ClientProxy : public Actor {
   String nodeName;
 
  public:
-  ClientProxy(Thread &thread, Config config, UdpAddress source)
+  ClientProxy(Thread &thread, Json config, UdpAddress source)
       : Actor(thread),
         _broker(thread, config),
         _sourceAddress(source),
         _incoming(10, "incoming"),
         _outgoing(5, "outgoing") {
     INFO(" created clientProxy %s ", _sourceAddress.toString().c_str());
+    _incoming.async(thread);
+    _outgoing.async(thread);
   };
   void init() {
     _broker.init();
@@ -204,13 +207,13 @@ class ClientProxy : public Actor {
 //==========================================================================
 int main(int argc, char **argv) {
   INFO("Loading configuration." );
-  Config config = loadConfig(argc, argv);
+  Json config = loadConfig(argc, argv);
   Thread workerThread("worker");
-  Config udpConfig = config["udp"];
+  Json udpConfig = config["udp"];
 
   SessionUdp udpSession(workerThread, config["udp"]);
 
-  Config brokerConfig = config["broker"];
+  Json brokerConfig = config["broker"];
   BrokerRedis brokerProxy(workerThread, brokerConfig);
   std::map<UdpAddress, ClientProxy *> clients;
 

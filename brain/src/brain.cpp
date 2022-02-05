@@ -52,6 +52,8 @@ int main(int argc, char **argv) {
   Config brokerConfig = config["broker"];
   TimerSource pubTimer(workerThread, 2000, true, "pubTimer");
   TimerSource timerLatency(workerThread, 1000, true, "ticker");
+  TimerSource timerWatchdog(workerThread, 1000, true, "ticker");
+
   TimerSource timerMeta(workerThread, 30000, true, "ticker");
   uint64_t startTime = Sys::millis();
 
@@ -62,6 +64,11 @@ int main(int argc, char **argv) {
 
   auto &pubUptime = broker.publisher<uint64_t>("src/brain/system/uptime");
   auto &pubLoopback = broker.publisher<uint64_t>("src/brain/system/loopback");
+  auto &pubWatchdog = broker.publisher<bool>("dst/hover/motor/watchdogReset");
+
+  timerWatchdog >> [&](const TimerMsg &) {
+      pubWatchdog.on(true);
+  };
 
   timerLatency >> [&](const TimerMsg &) {
     INFO("pub %lu ", Sys::micros());

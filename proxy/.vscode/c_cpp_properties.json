@@ -4,7 +4,6 @@
             "name": "ESP32",
             "includePath": [
                 "/usr/local/include",
-                "${workspaceFolder}/build/_deps/googletest-src/googletest/include/",
                 "${workspaceFolder}/../common/src",
                 "${workspaceFolder}/../broker/src",
                 "${workspaceFolder}/../linux/src",
@@ -13,7 +12,8 @@
                 "${workspaceFolder}/../hiredis",
                 "${workspaceFolder}/../tinycbor/src",
                 "${workspaceFolder}/src/",
-                "${workspaceFolder}/../../components/spine"
+                "${workspaceFolder}/../../components/inc",
+                "${workspaceFolder}/../../ArduinoJson/src"
             ],
             "defines": [
                 "NOTHING",

@@ -48,8 +48,8 @@ CborWriter &cborAddJson(CborWriter &writer, Json v) {
     exit(-1);                                                                  \
   }
 
-Config loadConfig(int argc, char **argv) {
-  Config cfg;
+Json loadConfig(int argc, char **argv) {
+  Json cfg;
   // defaults
   cfg["serial"]["port"] = "/dev/ttyUSB0";
   cfg["serial"]["baudrate"] = 115200;
@@ -90,15 +90,15 @@ Config loadConfig(int argc, char **argv) {
 //==========================================================================
 int main(int argc, char **argv) {
   INFO("Loading configuration." );
-  Config config = loadConfig(argc, argv);
+  Json config = loadConfig(argc, argv);
   Thread workerThread("worker");
-  Config serialConfig = config["serial"];
+  Json serialConfig = config["serial"];
 
   string dstPrefix;
   string srcPrefix;
 
   SessionSerial serialSession(workerThread, config["serial"]);
-  Config brokerConfig = config["broker"];
+  Json brokerConfig = config["broker"];
 
   INFO(" Launching Redis");
   BrokerRedis broker(workerThread, brokerConfig);

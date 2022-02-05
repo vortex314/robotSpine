@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
 primitive(4614256656550717752) FF                                # primitive(*)
    FF                                   # primitive(*)
 */
-
+Log logger;
 int main2(int argc, char **argv) {
   std::vector<uint8_t> bytes = {
       0x9F, 0x00, 0x77, 0x73, 0x72, 0x63, 0x2F, 0x73, 0x74, 0x6D, 0x33, 0x32,
