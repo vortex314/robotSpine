@@ -10,21 +10,16 @@ add_definitions( -DLINUX -DCATCH_CONFIG_DISABLE)
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} -g )
 set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} -g )
 
-find_path(HIREDIS_HEADER hiredis)
-# target_include_directories(target PUBLIC ${HIREDIS_HEADER})
-find_library(HIREDIS_LIB hiredis)
-# target_link_libraries(target ${HIREDIS_LIB})
-# <------------ add redis-plus-plus dependency -------------->
-# NOTE: this should be *sw* NOT *redis++*
-find_path(REDIS_PLUS_PLUS_HEADER sw)
-# target_include_directories(target PUBLIC ${REDIS_PLUS_PLUS_HEADER})
-find_library(REDIS_PLUS_PLUS_LIB redis++)
-# target_link_libraries(target ${REDIS_PLUS_PLUS_LIB})
+set(WS /home/lieven/workspace )
+set(HIREDIS ${WS}/robotSpine/hiredis )
+set(BROKER ${WS}/components/broker/src)
+set(LINUX ${WS}/components/linux/src)
+set(TINYCBOR ${WS}/robotSpine/tinycbor )
+set(JSON ${WS}/json/single_include )
+set(COMMON ../common/src )
+set(COMPONENTS ${WS}/components)
+set(ARDUINOJSON ${WS}/ArduinoJson )
 
-set(HIREDIS ../hiredis )
-set(JSON ../json/single_include )
-set(ARDUINOJSON ../../ArduinoJson)
-set(COMPONENTS ../../components/ )
 
 include_directories(
   src 
@@ -45,10 +40,10 @@ target_sources(redis-brain PRIVATE
     ${COMPONENTS}/src/StringUtility.cpp )
 
 target_link_libraries(redis-brain 
--L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
--lpthread  
--lhiredis
--lrt  
--latomic)
+  -L/home/lieven/workspace/tinycbor/lib -l:libtinycbor.a
+  -lpthread  
+  -L${HIREDIS} -l:libhiredis.a
+  -lrt  
+  -latomic)
 
 

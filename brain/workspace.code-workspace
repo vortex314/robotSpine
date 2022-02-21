@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "../broker"
+		},
+		{
+			"path": "../../components/linux"
 		}
 	],
 	"settings": {
